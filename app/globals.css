@@ -1,7 +1,164 @@
 @import "tailwindcss";
 
-/* Placeholder. Agent B owns this file and replaces it (SPEC §8 theme). */
-body {
-  background: #0a0a0c;
-  color: #f4f4f5;
+/* SPEC §8 design tokens. Use these utilities (bg-canvas, bg-surface, text-fg, text-muted,
+   bg-accent, text-success, border-line) everywhere; no raw hex in components. */
+@theme {
+  --color-canvas: #0a0a0c;
+  --color-surface: #16161a;
+  --color-raised: #1d1d22;
+  --color-fg: #f4f4f5;
+  --color-muted: #a1a1aa;
+  --color-accent: #ffb020;
+  --color-on-accent: #0a0a0c;
+  --color-success: #34d399;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.14);
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Slide text in the sheet: 21px (SPEC §8: 20–22px). */
+  --text-slide: 1.3125rem;
+  --text-slide--line-height: 1.55;
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-rise: rise 220ms var(--ease-out-soft) both;
+  --animate-fade: fade 200ms ease-out both;
+  --animate-sheet: sheet-up 280ms var(--ease-out-soft) both;
+  --animate-badge: badge-pulse 520ms var(--ease-out-soft) 120ms both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-blink: blink 2s ease-in-out infinite;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes badge-pulse {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgb(255 176 32 / 0.55);
+    }
+    40% {
+      transform: scale(1.14);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 10px rgb(255 176 32 / 0);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @keyframes blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+
+/* Loading placeholder shaped like the real content. */
+@utility shimmer {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.05) 40%,
+    rgb(255 255 255 / 0.09) 50%,
+    rgb(255 255 255 / 0.05) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Text-tile texture for slides without a photo: a faint blueprint grid. */
+@utility tile-grid {
+  background-color: var(--color-surface);
+  background-image:
+    linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+@utility pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: rgb(255 176 32 / 0.3);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  button,
+  [role="tab"] {
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
 }
