@@ -1,58 +1,82 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import AskPanel from "@/components/ask/AskPanel";
 import EasyReader from "@/components/easy/EasyReader";
-import { BackrowMark, CameraIcon, ExpandIcon, SearchIcon, StackIcon } from "@/components/icons";
+import { BackrowMark, CameraIcon, CloseIcon, ClockIcon, ExpandIcon, QrIcon, SearchIcon, StackIcon } from "@/components/icons";
 import { useFeed } from "@/components/hooks/useFeed";
+import { usePending } from "@/components/hooks/usePending";
+import PendingPanel from "@/components/rooms/PendingPanel";
 import { useSharePref } from "@/components/hooks/useSharePref";
 import SlideCard, { SlideCardSkeleton } from "@/components/slide/SlideCard";
 import SlideSheet from "@/components/slide/SlideSheet";
 import { formatTime } from "@/lib/config";
 import { getRoom, snap } from "@/lib/client";
 import type { SharePref } from "@/lib/device";
-import type { Slide, Talk } from "@/lib/types";
+import type { RoomResponse, Slide, Talk } from "@/lib/types";
 import ShareModal from "./ShareModal";
 import ShareToggle from "./ShareToggle";
 import SnapBar from "./SnapBar";
 import { SnapErrorCard, SnapLoadingCard } from "./SnapStatusCard";
 
-const TABS = [
+type TabId = "feed" | "pending" | "easy" | "ask";
+const TABS: { id: TabId; label: string }[] = [
   { id: "feed", label: "Feed" },
   { id: "easy", label: "Easy read" },
   { id: "ask", label: "Ask" },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
+];
+const HOST_TABS: { id: TabId; label: string }[] = [TABS[0], { id: "pending", label: "Pending" }, ...TABS.slice(1)];
+
+const HOSTED_LINES = ["Reading the photo…", "Writing a description…", "Adding it to the room…"];
+const GUEST_LINES = ["Reading the photo…", "Writing a description…", "Sending it to the host…"];
 
 type SnapState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string };
 
-type Props = { room: string; roomName: string; fallbackTalk: Talk | null };
+type Props = { room: string; roomName: string; hosted: boolean; fallbackTalk: Talk | null };
 
-export default function RoomView({ room, roomName, fallbackTalk }: Props) {
+export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbackTalk }: Props) {
   const { data, failed, announcement, refresh } = useFeed(room);
-  const [roomTalk, setRoomTalk] = useState<Talk | null | undefined>(undefined);
+  const [roomInfo, setRoomInfo] = useState<RoomResponse | null>(null);
   const [tab, setTab] = useState<TabId>("feed");
   const [snapState, setSnapState] = useState<SnapState>({ status: "idle" });
   const [mySnaps, setMySnaps] = useState<Slide[]>([]);
   const [open, setOpen] = useState<Slide | null>(null);
   const [asking, setAsking] = useState(false);
   const [resultNote, setResultNote] = useState("");
+  const [sentNote, setSentNote] = useState(false);
   const [sharePref, setSharePref] = useSharePref();
   const fileRef = useRef<HTMLInputElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
     getRoom(room)
-      .then((r) => setRoomTalk(r.talk))
-      .catch(() => setRoomTalk(null));
+      .then(setRoomInfo)
+      .catch(() => setRoomInfo(null));
   }, [room]);
 
-  const talk = data?.talk ?? roomTalk ?? fallbackTalk;
+  const hosted = roomInfo ? !!roomInfo.hosted : hostedAtLoad;
+  const host = hosted && !!roomInfo?.host;
+  // Approving shows the photo in the host's feed at once, before the server round trip.
+  const onApproved = useCallback(
+    (slide: Slide, ok: boolean) => {
+      setMySnaps((prev) => [
+        ...(ok ? [{ ...slide, status: "approved" as const }] : []),
+        ...prev.filter((s) => s.slide_id !== slide.slide_id),
+      ]);
+    },
+    [],
+  );
+  const pending = usePending(room, host, onApproved);
+  const pendingCount = pending.slides?.length ?? roomInfo?.pending_count ?? 0;
+  const tabs = host ? HOST_TABS : TABS;
+  const name = roomInfo?.room_name || roomName;
+  const talk = data?.talk ?? roomInfo?.talk ?? fallbackTalk;
   const feedIds = new Set(data?.slides.map((s) => s.cluster_id));
   const slides = data ? [...mySnaps.filter((s) => !feedIds.has(s.cluster_id)), ...data.slides] : null;
 
   function startSnap() {
-    if (sharePref === null) setAsking(true);
+    // Hosted rooms always share (the host's approval is the guardrail), so don't ask.
+    if (sharePref === null && !hosted) setAsking(true);
     else fileRef.current?.click();
   }
 
@@ -69,17 +93,31 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
     if (!file) return;
     setTab("feed");
     setResultNote("");
+    setSentNote(false);
     setSnapState({ status: "loading" });
     window.scrollTo({ top: 0, behavior: "smooth" });
     const res = await snap(file, room);
     if (res.ok) {
-      const slide = { ...res.slide, snaps: res.cluster_size, mine: true };
+      const slide: Slide = {
+        ...res.slide,
+        snaps: res.cluster_size,
+        mine: true,
+        ...(res.pending ? { status: "pending" as const } : {}),
+      };
       setMySnaps((prev) => [slide, ...prev.filter((s) => s.cluster_id !== slide.cluster_id)]);
       setSnapState({ status: "idle" });
-      setResultNote(
-        `Saved “${slide.title || "your slide"}”. Snapped by ${res.cluster_size} ${res.cluster_size === 1 ? "person" : "people"}.`,
-      );
-      setOpen(slide);
+      if (res.pending) {
+        // Guests in a hosted room: no sheet, just a clear "sent" note on top of the feed.
+        setSentNote(true);
+        setResultNote("Sent to the host. It appears for everyone once approved.");
+      } else {
+        setResultNote(
+          hosted
+            ? `Added “${slide.title || "your photo"}” to the room.`
+            : `Saved “${slide.title || "your slide"}”. Snapped by ${res.cluster_size} ${res.cluster_size === 1 ? "person" : "people"}.`,
+        );
+        setOpen(slide);
+      }
       refresh();
     } else {
       setSnapState({
@@ -89,18 +127,20 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
             ? "That doesn't look like a slide. Try again?"
             : res.reason === "too_large"
               ? "That photo is too large. Try again?"
-              : "Couldn't save that snap. Try again?",
+              : hosted
+                ? "Couldn't add that photo. Try again?"
+                : "Couldn't save that snap. Try again?",
       });
     }
   }
 
   function onTabKey(e: KeyboardEvent<HTMLDivElement>) {
-    const i = TABS.findIndex((t) => t.id === tab);
+    const i = tabs.findIndex((t) => t.id === tab);
     const next = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : null;
     if (next === null) return;
     e.preventDefault();
-    const j = (next + TABS.length) % TABS.length;
-    setTab(TABS[j].id);
+    const j = (next + tabs.length) % tabs.length;
+    setTab(tabs[j].id);
     tabRefs.current[j]?.focus();
   }
 
@@ -117,7 +157,20 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
             <span className="hidden text-[17px] min-[380px]:inline">Backrow</span>
           </Link>
           <div className="-mr-2 flex items-center">
-            <ShareToggle />
+            {hosted ? (
+              <Link
+                href={`/r/${encodeURIComponent(room)}/share`}
+                className="mr-1 flex min-h-12 items-center rounded-full px-1 text-sm font-medium"
+              >
+                <span className="flex h-9 items-center gap-1.5 rounded-full border border-line-strong px-3.5 transition-colors hover:bg-surface">
+                  <QrIcon size={17} className="text-muted" />
+                  Share
+                  <span className="sr-only"> room QR code</span>
+                </span>
+              </Link>
+            ) : (
+              <ShareToggle />
+            )}
             <Link
               href="/search"
               aria-label="Search slides"
@@ -135,6 +188,29 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
           </div>
         </div>
 
+        {hosted ? (
+          <div className="pt-5 pb-6 sm:pt-8 sm:pb-8">
+            {host ? (
+              <p className="inline-flex h-7 items-center gap-2 rounded-full border border-line-strong px-3 text-[13px] font-medium tracking-wide">
+                <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
+                You&apos;re hosting
+              </p>
+            ) : (
+              <p className="flex items-center gap-2 text-[13px] font-medium tracking-wider text-muted uppercase">
+                <span className="size-2 animate-blink rounded-full bg-success" aria-hidden="true" />
+                Hosted room
+              </p>
+            )}
+            <h1 className="mt-3 line-clamp-3 text-[34px] leading-[1.05] font-semibold tracking-[-0.03em] text-balance break-words sm:text-[52px]">
+              {name}
+            </h1>
+            <p className="mt-2 max-w-[46ch] text-[15px] text-muted">
+              {host
+                ? "Your photos go up at once. Approve guests' photos under Pending."
+                : "Add any photo. The host approves what everyone sees."}
+            </p>
+          </div>
+        ) : (
         <div className="pt-5 pb-6 sm:pt-8 sm:pb-8">
           <p className="flex items-center gap-2 text-[13px] font-medium tracking-wider text-muted uppercase">
             {talk ? (
@@ -164,6 +240,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
             </>
           )}
         </div>
+        )}
       </header>
 
       <div className="sticky top-0 z-20 border-b border-line bg-canvas">
@@ -173,7 +250,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
           onKeyDown={onTabKey}
           className="mx-auto flex max-w-6xl px-4 sm:gap-2 sm:px-5"
         >
-          {TABS.map((t, i) => {
+          {tabs.map((t, i) => {
             const active = t.id === tab;
             return (
               <button
@@ -193,6 +270,16 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
                 }`}
               >
                 {t.label}
+                {t.id === "pending" && (
+                  <span
+                    key={pendingCount}
+                    className={`ml-1.5 inline-grid h-6 min-w-6 place-items-center rounded-full px-1.5 align-[1px] text-[13px] font-semibold tabular-nums ${
+                      pendingCount > 0 ? "animate-badge bg-accent text-on-accent" : "bg-raised text-muted"
+                    }`}
+                  >
+                    {pendingCount}
+                  </span>
+                )}
                 <span
                   aria-hidden="true"
                   className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent transition-opacity sm:inset-x-3 ${
@@ -218,16 +305,50 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
                 Can&apos;t reach the room right now. Trying again…
               </p>
             )}
+            {sentNote && (
+              <div className="animate-rise mb-6 flex max-w-xl items-start gap-3 rounded-xl border border-line-strong bg-surface py-3 pr-1 pl-4">
+                <ClockIcon size={22} className="mt-0.5 shrink-0 text-accent" />
+                <p className="flex-1 py-0.5 text-[15px] leading-snug">
+                  <span className="font-semibold">Sent to the host.</span>{" "}
+                  <span className="text-muted">It appears for everyone once approved.</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSentNote(false)}
+                  aria-label="Dismiss"
+                  className="-my-2 grid size-12 shrink-0 place-items-center rounded-full text-muted hover:text-fg"
+                >
+                  <CloseIcon size={18} />
+                </button>
+              </div>
+            )}
             {slides && slides.length === 0 && snapState.status === "idle" ? (
               <div className="grid aspect-video max-w-xl place-items-center rounded-xl border border-dashed border-line-strong px-6 text-center">
                 <div>
                   <CameraIcon size={28} className="mx-auto text-muted" />
-                  <p className="mt-3 text-lg font-medium tracking-tight">No slides yet. Be the first to snap one.</p>
+                  <p className="mt-3 text-lg font-medium tracking-tight">
+                    {!hosted
+                      ? "No slides yet. Be the first to snap one."
+                      : host
+                        ? "No photos yet. Share the QR to get people in."
+                        : "No photos yet. Be the first to add one."}
+                  </p>
+                  {host && (
+                    <Link
+                      href={`/r/${encodeURIComponent(room)}/share`}
+                      className="mt-5 inline-flex h-12 items-center gap-2 rounded-xl border border-line-strong px-4 font-medium transition-colors hover:bg-surface"
+                    >
+                      <QrIcon className="text-muted" />
+                      Show the QR
+                    </Link>
+                  )}
                 </div>
               </div>
             ) : (
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-                {snapState.status === "loading" && <SnapLoadingCard />}
+                {snapState.status === "loading" && (
+                  <SnapLoadingCard lines={!hosted ? undefined : host ? HOSTED_LINES : GUEST_LINES} />
+                )}
                 {snapState.status === "error" && (
                   <SnapErrorCard
                     message={snapState.message}
@@ -241,6 +362,10 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
               </ul>
             )}
           </>
+        )}
+
+        {tab === "pending" && host && (
+          <PendingPanel room={room} slides={pending.slides} error={pending.error} onAct={pending.act} onOpen={setOpen} />
         )}
 
         {tab === "easy" && (
@@ -264,7 +389,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
       </main>
 
       <p className="sr-only" aria-live="polite">
-        {resultNote || announcement}
+        {resultNote || pending.announcement || announcement}
       </p>
 
       <input
@@ -277,9 +402,11 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
         tabIndex={-1}
         aria-label="Snap a slide"
       />
-      {tab !== "ask" && <SnapBar busy={snapState.status === "loading"} onSnap={startSnap} />}
+      {(tab === "feed" || tab === "easy") && (
+        <SnapBar busy={snapState.status === "loading"} onSnap={startSnap} label={hosted ? "Snap a photo" : undefined} />
+      )}
       {asking && <ShareModal onChoose={chooseShare} onCancel={() => setAsking(false)} />}
-      {open && <SlideSheet slide={open} roomName={roomName} onClose={() => setOpen(null)} />}
+      {open && <SlideSheet slide={open} roomName={name} onClose={() => setOpen(null)} />}
     </div>
   );
 }
