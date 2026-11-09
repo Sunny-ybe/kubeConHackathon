@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import type { ModerateRequest, ModerateResponse } from "@/lib/types";
 import { SLIDES_INDEX } from "@/lib/config";
 import { es } from "@/lib/server/es";
@@ -27,7 +28,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ room: s
     }
     // The slide must belong to this room, so a host can't moderate other rooms.
     const doc = await es()
-      .get<{ room?: string }>({ index: SLIDES_INDEX, id: slideId, _source_includes: ["room"] })
+      .get<{ room?: string; video_url?: string }>({
+        index: SLIDES_INDEX,
+        id: slideId,
+        _source_includes: ["room", "video_url"],
+      })
       .catch((err) => {
         if (err?.meta?.statusCode === 404) return null;
         throw err;
@@ -42,6 +47,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ room: s
       body = { ok: true, slide_id: slideId, status: "approved" };
     } else {
       await es().delete({ index: SLIDES_INDEX, id: slideId, refresh: "wait_for" });
+      // A rejected video's file goes too (SPEC §15). Best effort: the doc is already gone.
+      const videoUrl = doc._source?.video_url;
+      if (videoUrl) await del(videoUrl).catch((err) => console.error("blob delete failed", err));
       body = { ok: true, slide_id: slideId, status: "deleted" };
     }
     return Response.json(body);
