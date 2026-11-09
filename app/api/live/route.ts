@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { es } from "@/lib/server/es";
-import { HEAVY_FIELDS, toSlide } from "@/lib/server/slides";
+import { HEAVY_FIELDS, PUBLIC_SLIDE, toSlide } from "@/lib/server/slides";
 import { span } from "@/lib/server/trace";
-import { HEAT_WINDOW_MIN, SLIDES_INDEX } from "@/lib/config";
+import { HEAT_WINDOW_MIN, ROOMS_INDEX, SLIDES_INDEX } from "@/lib/config";
 import type { LiveResponse, LiveRoom } from "@/lib/types";
 import schedule from "@/data/schedule.json";
 
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
           index: SLIDES_INDEX,
           size: 0,
           track_total_hits: true,
-          query: { bool: { filter: [{ term: { shared: true } }, { term: { is_slide: true } }] } },
+          query: PUBLIC_SLIDE,
           aggs: {
             top_slides: { terms: { field: "cluster_id", size: 6 }, aggs: { rep: repHit } },
             recent: {
@@ -63,6 +63,13 @@ export async function GET(req: Request) {
     const heat = new Map<string, Bucket>((aggs.recent?.rooms?.buckets ?? []).map((b: Bucket) => [b.key, b]));
     const names = new Map(schedule.rooms.map((r) => [r.room, r.name]));
     const roomIds = [...new Set([...schedule.rooms.map((r) => r.room), ...heat.keys()])];
+
+    // Hosted rooms (SPEC §14) aren't in the schedule: take their names from backrow-rooms.
+    const hostedIds = roomIds.filter((r) => !names.has(r));
+    if (hostedIds.length) {
+      const docs: any = await es().mget({ index: ROOMS_INDEX, ids: hostedIds, _source_includes: ["name"] });
+      for (const d of docs.docs ?? []) if (d.found && d._source?.name) names.set(d._id, d._source.name);
+    }
 
     const rooms: LiveRoom[] = roomIds
       .map((room) => {
