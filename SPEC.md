@@ -95,10 +95,15 @@ Images: base64 `binary` fields in Elasticsearch (`image` 1280px, `thumb` 400px),
 
 **Why images live in Elasticsearch:** it's one less service to set up, and Elasticsearch really is the only datastore. If documents get too heavy, swap in Vercel Blob later and keep only a URL.
 
-**Next.js notes (15 and later)**
+**Next.js notes (16)**
 - In route handlers and pages, `params` is a Promise. Use `const { room } = await params`.
 - Add `export const dynamic = "force-dynamic"` to every GET API route.
 - Add `export const runtime = "nodejs"` and `export const maxDuration = 60` to `/api/snap`, `/api/ask` and `/api/report`.
+- `cacheComponents` stays off in `next.config.ts`, because it forbids `force-dynamic`.
+
+**Times:** the event is in Denver (Mountain Time) and Vercel runs on UTC. Every time shown to a user goes through `formatTime(iso)` from `lib/config.ts`, which returns e.g. "2:41 PM".
+
+**Tracing:** `span(name, fn, attrs?)` from `lib/server/trace.ts` wraps a server step in an OpenTelemetry span. It is a no-op until Dash0 is switched on (`tasks/agent-e-observability.md`), so routes can always use it.
 
 ---
 
@@ -168,6 +173,8 @@ Use these constants from `lib/config.ts`:
 6. Index with `es.index({ index: SLIDES_INDEX, id: slide_id, document })`. **Don't pass `refresh`.** That keeps snaps fast, and the fingerprint handles snaps that arrive in the same second.
 7. `cluster_size` is `es.count` on that `cluster_id` plus 1, because the new doc isn't searchable yet.
 8. Return `{ ok:true, slide, talk, cluster_size }`.
+
+Wrap steps 2, 4, 5 and 6 in `span()` (`snap.vision`, `snap.attribute`, `snap.cluster`, `snap.index`) so a slow snap shows which step was slow.
 
 Target: under 7 seconds end to end.
 
@@ -313,6 +320,16 @@ commands, and code unchanged. Return only the translation.
   - Images that fail to load become a text tile showing the slide title.
   - Empty states have a single line of guidance ("No slides yet. Be the first to snap one.").
 - **Copy:** short and plain. "Snap a slide", not "Upload image".
+- **Times:** always `formatTime()` (Denver time).
+
+**Accessibility checklist** (Gitar checks these on every PR):
+- Every button and input has an accessible name; icon-only buttons get `aria-label`.
+- Every `<img>` has `alt` (the slide title; `""` only if decorative). The slide sheet's Diagram box is the alt text for diagrams.
+- Loading lines, snap results, Ask answers and new-slide updates sit in an `aria-live="polite"` region.
+- Tap targets at least 48px; visible focus rings; never `outline: none` without a replacement.
+- Text contrast at least 4.5:1 (the §8 palette passes on its own backgrounds).
+- Animations and the `/live` count-up respect `prefers-reduced-motion`.
+- `<html lang="en">`, and translated text gets a matching `lang` attribute.
 
 ---
 
@@ -337,7 +354,9 @@ NEXT_PUBLIC_APP_URL=https://<app>.vercel.app
 NEXT_PUBLIC_USE_FIXTURES=0
 ```
 Dependencies, pre-installed. **Agents don't add new ones without asking.**
-`@elastic/elasticsearch @anthropic-ai/sdk react-markdown qrcode @types/qrcode`
+`@elastic/elasticsearch @anthropic-ai/sdk @opentelemetry/api react-markdown qrcode @types/qrcode`
+
+Optional, only if Dash0 is switched on (Agent E): `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`.
 
 ---
 
@@ -345,11 +364,12 @@ Dependencies, pre-installed. **Agents don't add new ones without asking.**
 
 | Owner | Files |
 |---|---|
-| **Frozen (change only through the human)** | `SPEC.md`, `lib/types.ts`, `lib/config.ts`, `lib/device.ts`, `lib/fixtures.ts`, `lib/server/*`, `scripts/setup-es.mjs`, `package.json` |
+| **Frozen (change only through the human)** | `SPEC.md`, `lib/types.ts`, `lib/config.ts`, `lib/device.ts`, `lib/fixtures.ts`, `lib/server/*`, `scripts/setup-es.mjs`, `package.json`, `package-lock.json`, `next.config.ts`, `.github/**`, `.gitar/**` |
 | **A: pipeline** | `app/api/snap`, `app/api/room`, `app/api/feed`, `app/api/slides`, `lib/vision.ts`, `scripts/seed.mjs`, `scripts/vision-test.mjs` |
 | **B: phone UI** | `app/page.tsx`, `app/layout.tsx`, `app/globals.css`, `app/r/**`, `app/qr/**`, `components/**` except `components/ask/**`, `components/report/**`, `components/live/**`; `lib/client.ts` |
 | **C: search, Ask, report** | `app/api/search`, `app/api/ask`, `app/api/me`, `app/api/report`, `app/api/translate`, `app/search/**`, `app/me/**`, `components/ask/**`, `components/report/**`, `lib/retrieval.ts`, `lib/llm.ts`, `scripts/dev-insert-slides.mjs` |
 | **D: live and demo** | `app/api/live`, `app/live/**`, `app/talk/**` (stretch), `components/live/**`, `scripts/dev-insert-live.mjs`, `data/schedule.json` (data only), `README.md` |
+| **E: observability (optional)** | `instrumentation.ts` |
 
 ---
 
@@ -359,3 +379,13 @@ Dependencies, pre-installed. **Agents don't add new ones without asking.**
 - The README discloses that AI coding assistants were used.
 - No secrets in the repo. No photos of people in the repo or the demo.
 - You must be able to explain the architecture: read this spec.
+
+---
+
+## 13. Git workflow
+
+- Each agent works on its own branch (`agent-a` … `agent-e`) in its own worktree. Nobody commits to `main` directly.
+- **Atomic commits:** one logical change per commit, each one building, with a message that says what and why. Stage files by name.
+- At each milestone in a task file, the agent pushes and opens (or updates) a PR into `main`.
+- CI (`.github/workflows/ci.yml`: lint + build) and Gitar (`.gitar/review/backrow.md`) review every PR. Fix CI failures and blocking Gitar comments before asking for a merge.
+- Only the human merges. Agents then `git fetch && git merge origin/main` before continuing.
