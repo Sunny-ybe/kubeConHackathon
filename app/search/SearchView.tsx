@@ -25,7 +25,7 @@ function Highlight({ fragment }: { fragment: string }) {
         .split(/<em>(.*?)<\/em>/)
         .map((part, i) =>
           i % 2 ? (
-            <strong key={i} className="font-semibold text-[#F4F4F5]">
+            <strong key={i} className="font-semibold text-fg">
               {part}
             </strong>
           ) : (
@@ -44,22 +44,22 @@ function ResultRow({ hit, onOpen }: { hit: SearchHit; onOpen: () => void }) {
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full gap-3 rounded-xl p-2 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-[#FFB020] sm:gap-4"
+        className="flex w-full gap-3 rounded-xl p-2 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-accent sm:gap-4"
       >
-        <SlideThumb slide={s} className="w-32 shrink-0 sm:w-44" />
+        <SlideThumb slide={s} className="w-32 shrink-0 self-start sm:w-44" />
         <span className="min-w-0 flex-1">
           <span className="flex items-start gap-2">
-            <span className="line-clamp-2 text-lg font-semibold leading-snug text-[#F4F4F5]">
+            <span className="line-clamp-2 text-lg font-semibold leading-snug text-fg">
               {s.title || "Untitled slide"}
             </span>
             {s.mine && (
-              <span className="mt-1 shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-[#A1A1AA]">
+              <span className="mt-1 shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-muted">
                 You
               </span>
             )}
           </span>
-          <span className="mt-0.5 block truncate text-sm text-[#A1A1AA]">{slideMeta(s)}</span>
-          <span className="mt-1.5 line-clamp-3 text-[15px] leading-snug text-[#A1A1AA]">
+          <span className="mt-0.5 block truncate text-sm text-muted">{slideMeta(s)}</span>
+          <span className="mt-1.5 line-clamp-3 text-[15px] leading-snug text-muted">
             {hit.highlights[0] ? <Highlight fragment={hit.highlights[0]} /> : fallback}
           </span>
         </span>
@@ -141,17 +141,17 @@ export default function SearchView() {
         : { kind: "error" };
 
   const chip = (active: boolean) =>
-    `h-12 rounded-full px-5 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB020] ${
-      active ? "bg-[#F4F4F5] text-[#0A0A0C]" : "border border-white/[0.12] text-[#A1A1AA] hover:text-[#F4F4F5]"
+    `h-12 rounded-full px-5 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+      active ? "bg-fg text-on-accent" : "border border-line-strong text-muted hover:text-fg"
     }`;
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-16 text-[#F4F4F5] sm:px-6">
+    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-16 text-fg sm:px-6">
       <PageHeader current="search" />
 
       <div className="mt-4 mb-5 flex items-end justify-between gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight">{tab === "ask" ? "Ask the slides" : "Search slides"}</h1>
-        <div role="tablist" aria-label="Mode" className="flex rounded-xl border border-white/[0.08] bg-[#16161A] p-1">
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight sm:text-3xl">{tab === "ask" ? "Ask the slides" : "Search slides"}</h1>
+        <div role="tablist" aria-label="Mode" className="flex rounded-xl border border-line bg-surface p-1">
           {(["search", "ask"] as const).map((t) => (
             <button
               key={t}
@@ -159,8 +159,8 @@ export default function SearchView() {
               role="tab"
               aria-selected={tab === t}
               onClick={() => go({ tab: t })}
-              className={`h-10 min-w-16 rounded-lg px-4 text-base font-medium capitalize focus-visible:outline-2 focus-visible:outline-[#FFB020] ${
-                tab === t ? "bg-white/[0.1] text-[#F4F4F5]" : "text-[#A1A1AA] hover:text-[#F4F4F5]"
+              className={`h-10 min-w-16 rounded-lg px-4 text-base font-medium capitalize focus-visible:outline-2 focus-visible:outline-accent ${
+                tab === t ? "bg-white/[0.1] text-fg" : "text-muted hover:text-fg"
               }`}
             >
               {t}
@@ -187,7 +187,7 @@ export default function SearchView() {
               <svg
                 viewBox="0 0 24 24"
                 aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#A1A1AA]"
+                className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -203,7 +203,7 @@ export default function SearchView() {
                 placeholder="Search every slide snapped today"
                 enterKeyHint="search"
                 autoComplete="off"
-                className="h-14 w-full rounded-xl border border-white/[0.08] bg-[#16161A] pr-4 pl-12 text-lg placeholder:text-[#A1A1AA]/70 focus-visible:border-[#FFB020]/60 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[#FFB020]/40"
+                className="h-14 w-full rounded-xl border border-line bg-surface pr-4 pl-12 text-lg placeholder:text-muted/70 focus-visible:border-accent/60 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent/40"
               />
             </div>
           </form>
@@ -220,7 +220,7 @@ export default function SearchView() {
           <div className="mt-6" aria-live="polite" aria-busy={state.kind === "loading"}>
             {state.kind === "idle" && (
               <div>
-                <p className="text-base text-[#A1A1AA]">Search by words on the slide, or describe what you remember.</p>
+                <p className="text-base text-muted">Search by words on the slide, or describe what you remember.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {SUGGESTIONS.map((s) => (
                     <button
@@ -230,7 +230,7 @@ export default function SearchView() {
                         setInput(s);
                         go({ q: s });
                       }}
-                      className="h-12 rounded-full border border-white/[0.08] bg-[#16161A] px-4 text-base text-[#F4F4F5] hover:border-white/[0.16] focus-visible:outline-2 focus-visible:outline-[#FFB020]"
+                      className="h-12 rounded-full border border-line bg-surface px-4 text-base text-fg hover:border-line-strong focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       {s}
                     </button>
@@ -240,19 +240,19 @@ export default function SearchView() {
             )}
             {state.kind === "loading" && <ResultSkeleton />}
             {state.kind === "error" && (
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#16161A] p-5">
-                <p className="text-base text-[#A1A1AA]">Search is unavailable right now.</p>
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface p-5">
+                <p className="text-base text-muted">Search is unavailable right now.</p>
                 <button
                   type="button"
                   onClick={() => setRetry((n) => n + 1)}
-                  className="h-12 shrink-0 rounded-lg border border-white/[0.12] px-4 text-base font-medium hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-[#FFB020]"
+                  className="h-12 shrink-0 rounded-lg border border-line-strong px-4 text-base font-medium hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-accent"
                 >
                   Try again
                 </button>
               </div>
             )}
             {state.kind === "done" && state.hits.length === 0 && (
-              <p className="text-base text-[#A1A1AA]">
+              <p className="text-base text-muted">
                 {mine ? "None of your slides match that yet." : "No slides match that yet. Try other words."}
               </p>
             )}

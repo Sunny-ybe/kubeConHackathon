@@ -32,15 +32,15 @@ export default function TripReport({ report }: { report: ReportResponse }) {
     body.length > MAILTO_BODY_MAX ? body.slice(0, MAILTO_BODY_MAX) + "…" : body,
   )}`;
   const btn =
-    "inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.12] px-4 text-base font-medium hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB020] sm:flex-none";
+    "inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-line-strong px-4 text-base font-medium hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:flex-none";
 
   return (
-    <article className="rounded-2xl border border-white/[0.08] bg-[#16161A] p-5 sm:p-7">
-      <div className="text-[17px] leading-relaxed text-[#F4F4F5]">
+    <article className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
+      <div className="text-[17px] leading-relaxed text-fg">
         <CitedMarkdown markdown={report.markdown} citations={report.citations} onOpen={setOpen} />
       </div>
 
-      <div className="mt-6 flex gap-2 border-t border-white/[0.08] pt-5">
+      <div className="mt-6 flex gap-2 border-t border-line pt-5">
         <button type="button" onClick={copy} className={btn}>
           {copied ? "Copied" : "Copy"}
         </button>
@@ -51,7 +51,7 @@ export default function TripReport({ report }: { report: ReportResponse }) {
 
       {report.citations.length > 0 && (
         <>
-          <h3 className="mt-6 mb-2 text-xs font-semibold uppercase tracking-wider text-[#A1A1AA]">
+          <h3 className="mt-6 mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
             Sources · {report.citations.filter((c) => !c.slide.mine).length} from the room
           </h3>
           <ul className="space-y-1">
@@ -60,17 +60,17 @@ export default function TripReport({ report }: { report: ReportResponse }) {
                 <button
                   type="button"
                   onClick={() => setOpen(c)}
-                  className="flex min-h-12 w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-[#FFB020]"
+                  className="flex min-h-12 w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-accent"
                 >
-                  <span className="w-8 shrink-0 text-sm font-semibold tabular-nums text-[#FFB020]">{c.label}</span>
-                  <SlideThumb slide={c.slide} size="sm" className="w-20 shrink-0 rounded-md" />
+                  <span className="w-8 shrink-0 text-sm font-semibold tabular-nums text-accent">{c.label}</span>
+                  <SlideThumb slide={c.slide} size="sm" className="hidden w-20 shrink-0 rounded-md sm:block" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-base font-medium">{c.slide.title || "Untitled slide"}</span>
-                    <span className="block truncate text-sm text-[#A1A1AA]">{slideMeta(c.slide)}</span>
+                    <span className="block truncate text-sm text-muted">{slideMeta(c.slide)}</span>
                   </span>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      c.slide.mine ? "bg-white/[0.06] text-[#A1A1AA]" : "bg-[#FFB020]/15 text-[#FFB020]"
+                      c.slide.mine ? "bg-white/[0.06] text-muted" : "bg-accent/15 text-accent"
                     }`}
                   >
                     {c.slide.mine ? "You" : "Room"}

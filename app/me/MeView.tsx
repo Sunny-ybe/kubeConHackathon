@@ -66,13 +66,13 @@ export default function MeView() {
   const groups = groupByTalk(slides);
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-16 text-[#F4F4F5] sm:px-6">
+    <main className="mx-auto min-h-dvh w-full max-w-3xl px-4 pb-16 text-fg sm:px-6">
       <PageHeader current="me" />
 
       <div className="mt-4 mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">My slides</h1>
         {load.kind === "done" && slides.length > 0 && (
-          <p className="mt-1 text-base text-[#A1A1AA]">
+          <p className="mt-1 text-base text-muted">
             {slides.length} {slides.length === 1 ? "slide" : "slides"} from {groups.length}{" "}
             {groups.length === 1 ? "talk" : "talks"}
           </p>
@@ -93,15 +93,15 @@ export default function MeView() {
       )}
 
       {load.kind === "error" && (
-        <p className="rounded-2xl border border-white/[0.08] bg-[#16161A] p-5 text-base text-[#A1A1AA]">
+        <p className="rounded-2xl border border-line bg-surface p-5 text-base text-muted">
           Couldn&apos;t load your slides. Refresh to try again.
         </p>
       )}
 
       {load.kind === "done" && slides.length === 0 && (
-        <p className="text-base text-[#A1A1AA]">
+        <p className="text-base text-muted">
           No slides yet.{" "}
-          <Link href="/" className="font-medium text-[#FFB020] underline-offset-2 hover:underline">
+          <Link href="/" className="font-medium text-accent underline-offset-2 hover:underline">
             Pick a room and snap one.
           </Link>
         </p>
@@ -115,15 +115,15 @@ export default function MeView() {
                 type="button"
                 onClick={writeReport}
                 disabled={report.kind === "loading"}
-                className="h-14 w-full rounded-xl bg-[#FFB020] text-lg font-semibold text-[#0A0A0C] transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB020] disabled:opacity-60"
+                className="h-14 w-full rounded-xl bg-accent text-lg font-semibold text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
               >
                 {report.kind === "loading" ? "Writing…" : "Write my trip report"}
               </button>
             )}
             <div aria-live="polite" aria-busy={report.kind === "loading"}>
               {report.kind === "loading" && (
-                <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#16161A] p-5 sm:p-7">
-                  <p className="mb-5 text-base text-[#A1A1AA]">{REPORT_LINES[line]}</p>
+                <div className="mt-4 rounded-2xl border border-line bg-surface p-5 sm:p-7">
+                  <p className="mb-5 text-base text-muted">{REPORT_LINES[line]}</p>
                   <Shimmer className="mb-3 h-6 w-1/2" />
                   <div className="mb-7 space-y-2.5">
                     <Shimmer className="h-4 w-full" />
@@ -138,7 +138,7 @@ export default function MeView() {
                 </div>
               )}
               {report.kind === "error" && (
-                <p className="mt-3 text-base text-[#A1A1AA]">{report.message}</p>
+                <p className="mt-3 text-base text-muted">{report.message}</p>
               )}
               {report.kind === "done" && (
                 <>
@@ -147,7 +147,7 @@ export default function MeView() {
                     <button
                       type="button"
                       onClick={writeReport}
-                      className="-mr-3 h-12 rounded-lg px-3 text-base font-medium text-[#A1A1AA] hover:text-[#F4F4F5] focus-visible:outline-2 focus-visible:outline-[#FFB020]"
+                      className="-mr-3 h-12 rounded-lg px-3 text-base font-medium text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       Rewrite
                     </button>
@@ -164,7 +164,7 @@ export default function MeView() {
                 <h2 id={`talk-${g.talkId}`} className="text-xl font-semibold leading-snug">
                   {g.title}
                 </h2>
-                <p className="mt-0.5 mb-3 text-sm text-[#A1A1AA]">
+                <p className="mt-0.5 mb-3 text-sm text-muted">
                   {roomName(g.room)} · {g.slides.length} {g.slides.length === 1 ? "slide" : "slides"}
                 </p>
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -173,11 +173,11 @@ export default function MeView() {
                       <button
                         type="button"
                         onClick={() => setOpen(s)}
-                        className="block w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB020]"
+                        className="block w-full rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       >
                         <SlideThumb slide={s} />
                         <span className="mt-1.5 block truncate text-base font-medium">{s.title || "Untitled slide"}</span>
-                        <span className="block text-sm text-[#A1A1AA]">{formatTime(s.taken_at)}</span>
+                        <span className="block text-sm text-muted">{formatTime(s.taken_at)}</span>
                       </button>
                     </li>
                   ))}
