@@ -54,6 +54,9 @@ const slideMappings = {
     cluster_id: { type: "keyword" },
     status: { type: "keyword" },
     kind: { type: "keyword" },
+    media: { type: "keyword" },
+    video_url: { type: "keyword", index: false },
+    duration_s: { type: "float" },
     semantic,
     image: { type: "binary" },
     thumb: { type: "binary" },
@@ -92,7 +95,13 @@ try {
   // Additive fields for hosted rooms; safe to rerun on an existing index.
   await es.indices.putMapping({
     index: SLIDES,
-    properties: { status: { type: "keyword" }, kind: { type: "keyword" } },
+    properties: {
+      status: { type: "keyword" },
+      kind: { type: "keyword" },
+      media: { type: "keyword" },
+      video_url: { type: "keyword", index: false },
+      duration_s: { type: "float" },
+    },
   });
 } catch (err) {
   console.error("Index setup failed:", err?.meta?.body?.error ?? err);
