@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { es } from "@/lib/server/es";
-import { HEAVY_FIELDS, toSlide } from "@/lib/server/slides";
+import { HEAVY_FIELDS, PUBLIC_SLIDE, toSlide } from "@/lib/server/slides";
 import { span } from "@/lib/server/trace";
 import { SLIDES_INDEX, TALKS_INDEX, formatTime } from "@/lib/config";
 import type { Slide, Talk } from "@/lib/types";
@@ -24,9 +24,7 @@ async function load(id: string): Promise<{ talk: Talk | null; total: number; clu
           index: SLIDES_INDEX,
           size: 0,
           track_total_hits: true,
-          query: {
-            bool: { filter: [{ term: { talk_id: id } }, { term: { shared: true } }, { term: { is_slide: true } }] },
-          },
+          query: { bool: { filter: [{ term: { talk_id: id } }, PUBLIC_SLIDE] } },
           aggs: {
             clusters: {
               terms: { field: "cluster_id", size: 24 },

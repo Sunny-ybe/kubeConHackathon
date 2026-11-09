@@ -2,7 +2,7 @@
 import type { SearchHit } from "./types";
 import { SLIDES_INDEX } from "./config";
 import { es } from "./server/es";
-import { HEAVY_FIELDS, toSlide } from "./server/slides";
+import { HEAVY_FIELDS, PUBLIC_SLIDE, toSlide } from "./server/slides";
 import { span } from "./server/trace";
 
 export type HybridOpts = {
@@ -18,7 +18,7 @@ export type HybridOpts = {
 export async function hybridSlides({ q, deviceId, room, talkId, mine, size = 20 }: HybridOpts): Promise<SearchHit[]> {
   const filter = [
     { term: { is_slide: true } },
-    { bool: { should: [{ term: { shared: true } }, { term: { device_id: deviceId } }], minimum_should_match: 1 } },
+    { bool: { should: [PUBLIC_SLIDE, { term: { device_id: deviceId } }], minimum_should_match: 1 } },
     ...(room ? [{ term: { room } }] : []),
     ...(talkId ? [{ term: { talk_id: talkId } }] : []),
     ...(mine ? [{ term: { device_id: deviceId } }] : []),
