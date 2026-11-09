@@ -1,8 +1,17 @@
 // Browser-side API client. Returns lib/fixtures.ts data when NEXT_PUBLIC_USE_FIXTURES=1.
-import type { FeedResponse, RoomResponse, SnapResponse, TranslateResponse } from "./types";
+import type {
+  CreateRoomResponse,
+  FeedResponse,
+  ModerateResponse,
+  PendingResponse,
+  RoomResponse,
+  Slide,
+  SnapResponse,
+  TranslateResponse,
+} from "./types";
 import { IMAGE_MAX_PX, MAX_UPLOAD_BYTES, THUMB_MAX_PX } from "./config";
 import { deviceId, getSharePref } from "./device";
-import { feedFixture, roomFixture, snapFixture, translateFixture } from "./fixtures";
+import { feedFixture, roomFixture, slidesFixture, snapFixture, translateFixture } from "./fixtures";
 
 const USE_FIXTURES = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
 
@@ -55,9 +64,48 @@ export async function snap(file: File, room: string): Promise<SnapResponse> {
   }
 }
 
+/** Room header info. Passes device_id so a hosted room can say whether this device is the host. */
 export async function getRoom(room: string): Promise<RoomResponse> {
-  if (USE_FIXTURES) return { ...roomFixture, room };
-  return getJSON(`/api/room/${encodeURIComponent(room)}`);
+  if (USE_FIXTURES) return roomFx(room);
+  const qs = new URLSearchParams({ device_id: deviceId() });
+  return getJSON(`/api/room/${encodeURIComponent(room)}?${qs}`);
+}
+
+/** Start a hosted room (SPEC §14). A blank name gets a random one server-side. */
+export async function createRoom(name: string): Promise<CreateRoomResponse> {
+  if (USE_FIXTURES) {
+    await wait(600);
+    return createRoomFx(name);
+  }
+  const res = await fetch("/api/rooms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim() || undefined, device_id: deviceId() }),
+  });
+  if (!res.ok) throw new Error(`Could not start the room (${res.status})`);
+  return res.json() as Promise<CreateRoomResponse>;
+}
+
+/** Guest uploads waiting for the host, newest first. Host only (403 otherwise). */
+export async function getPending(room: string): Promise<PendingResponse> {
+  if (USE_FIXTURES) return { room, slides: pendingFx.filter((s) => !moderatedFx.has(s.slide_id)) };
+  const qs = new URLSearchParams({ device_id: deviceId() });
+  return getJSON(`/api/rooms/${encodeURIComponent(room)}/pending?${qs}`);
+}
+
+export async function moderate(room: string, slideId: string, action: "approve" | "reject"): Promise<ModerateResponse> {
+  if (USE_FIXTURES) {
+    await wait(400);
+    moderatedFx.add(slideId);
+    return { ok: true, slide_id: slideId, status: action === "approve" ? "approved" : "deleted" };
+  }
+  const res = await fetch(`/api/rooms/${encodeURIComponent(room)}/moderate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId(), slide_id: slideId, action }),
+  });
+  if (!res.ok) throw new Error(`Moderation failed (${res.status})`);
+  return res.json() as Promise<ModerateResponse>;
 }
 
 export async function getFeed(room: string): Promise<FeedResponse> {
@@ -79,3 +127,47 @@ export async function translate(text: string, lang: string): Promise<TranslateRe
   if (!res.ok) throw new Error(`Translate failed (${res.status})`);
   return res.json() as Promise<TranslateResponse>;
 }
+
+// Fixture mode for hosted rooms: rooms this browser "started" are remembered in localStorage,
+// so /new -> /r/<room>/share -> /r/<room> behaves like the real API (this device is the host).
+const FX_ROOMS_KEY = "backrow_fx_rooms";
+
+function fxRooms(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(FX_ROOMS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function createRoomFx(name: string): CreateRoomResponse {
+  const room_name = name.trim() || "Amber Falcon";
+  const slug = room_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "room";
+  const room = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  try {
+    localStorage.setItem(FX_ROOMS_KEY, JSON.stringify({ ...fxRooms(), [room]: room_name }));
+  } catch {
+    /* ignore */
+  }
+  return { room, room_name };
+}
+
+function roomFx(room: string): RoomResponse {
+  const name = fxRooms()[room];
+  if (!name) return { ...roomFixture, room };
+  const pending_count = pendingFx.filter((s) => !moderatedFx.has(s.slide_id)).length;
+  return { room, room_name: name, talk: null, hosted: true, host: true, pending_count };
+}
+
+const moderatedFx = new Set<string>();
+const pendingFx: Slide[] = slidesFixture.slice(1).map((s, i) => ({
+  ...s,
+  slide_id: `fx-pending-${i}`,
+  cluster_id: `fx-pending-${i}`,
+  status: "pending",
+  kind: i === 0 ? "photo" : "slide",
+  title: i === 0 ? "Team photo by the booth" : s.title,
+  text: i === 0 ? "" : s.text,
+  alt_text: i === 0 ? "A group of people standing in front of a conference booth with a large orange banner." : s.alt_text,
+  mine: false,
+}));
