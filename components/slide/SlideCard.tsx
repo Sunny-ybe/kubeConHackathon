@@ -1,23 +1,31 @@
 "use client";
 import { formatTime } from "@/lib/config";
 import type { Slide } from "@/lib/types";
+import { ClockIcon } from "@/components/icons";
 import SlideImage from "./SlideImage";
 
 type Props = { slide: Slide; index: number; onOpen: (slide: Slide) => void };
 
 export default function SlideCard({ slide, index, onOpen }: Props) {
   const snaps = slide.snaps ?? 1;
-  const title = slide.title || "Untitled slide";
+  const title = slide.title || (slide.kind === "photo" ? "Untitled photo" : "Untitled slide");
+  const waiting = slide.status === "pending";
   return (
     <li className="animate-rise" style={{ animationDelay: `${Math.min(index, 6) * 45}ms` }}>
       <button
         type="button"
         onClick={() => onOpen(slide)}
-        aria-label={`${title}${snaps > 1 ? `, snapped ${snaps} times` : ""}. Open slide`}
+        aria-label={`${title}${snaps > 1 ? `, snapped ${snaps} times` : ""}${waiting ? ", waiting for host" : ""}. Open ${slide.kind === "photo" ? "photo" : "slide"}`}
         className="group block w-full rounded-2xl text-left transition-transform active:scale-[0.985]"
       >
         <div className="relative aspect-video overflow-hidden rounded-xl border border-line bg-surface transition-colors group-hover:border-line-strong">
           <SlideImage slide={slide} size="thumb" />
+          {waiting && (
+            <span className="absolute top-2.5 left-2.5 flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-canvas/85 pr-2.5 pl-2 text-[13px] font-medium text-fg">
+              <ClockIcon size={15} className="text-muted" />
+              Waiting for host
+            </span>
+          )}
           {snaps > 1 && (
             <span
               key={snaps}
