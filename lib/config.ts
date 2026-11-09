@@ -2,6 +2,12 @@
 
 export const TALKS_INDEX = "backrow-talks";
 export const SLIDES_INDEX = "backrow-slides";
+export const ROOMS_INDEX = "backrow-rooms"; // hosted rooms (SPEC §14)
+
+/** Max photos per "Upload photos" batch from the camera roll. */
+export const MAX_BATCH_UPLOAD = 20;
+/** Hosted rooms stay open this long (their talk window). */
+export const HOSTED_ROOM_HOURS = 72;
 
 export const FEED_POLL_MS = 4000;
 export const LIVE_POLL_MS = 2000;

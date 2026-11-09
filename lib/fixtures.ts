@@ -73,7 +73,13 @@ export const slidesFixture: Slide[] = [
   }),
 ];
 
-export const roomFixture: RoomResponse = { room: "demo", room_name: "Demo Stage", talk: talkFixture };
+export const roomFixture: RoomResponse = {
+  room: "demo",
+  room_name: "Demo Stage",
+  talk: talkFixture,
+  hosted: false,
+  host: false,
+};
 
 export const feedFixture: FeedResponse = { room: "demo", talk: talkFixture, slides: slidesFixture };
 

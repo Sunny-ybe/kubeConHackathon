@@ -26,8 +26,21 @@ export function toSlide(id: string, src: any, opts: { snaps?: number; deviceId?:
     mine: opts.deviceId ? src.device_id === opts.deviceId : undefined,
     thumb_url: imageUrl(id, "thumb"),
     image_url: imageUrl(id, "full"),
+    status: src.status === "pending" ? "pending" : src.status === "approved" ? "approved" : undefined,
+    kind: src.kind === "photo" ? "photo" : src.kind === "slide" ? "slide" : undefined,
   };
 }
+
+/**
+ * Visible-to-others rule (SPEC §14): shared, accepted, and not waiting for the host.
+ * Use inside a bool `filter`/`should` wherever other people's slides are shown.
+ */
+export const PUBLIC_SLIDE = {
+  bool: {
+    filter: [{ term: { shared: true } }, { term: { is_slide: true } }],
+    must_not: [{ term: { status: "pending" } }],
+  },
+};
 
 /** Normalized word tokens (3+ chars) used for duplicate detection. */
 export function words(s: string): string[] {
