@@ -116,7 +116,7 @@ function Counter({ data }: { data: LiveResponse | null }) {
   const total = data?.total_snaps ?? 0;
   const recent = data?.rooms.reduce((n, r) => n + r.snaps, 0) ?? 0;
   const digits = String(total).length;
-  const size = digits <= 3 ? "text-[188px]" : digits === 4 ? "text-[160px]" : "text-[128px]";
+  const size = digits <= 3 ? "text-[180px]" : digits === 4 ? "text-[160px]" : "text-[128px]";
   return (
     <div className="pb-8">
       <h2 className={LABEL}>Slides snapped today</h2>
@@ -148,7 +148,7 @@ function RoomHeat({ rooms }: { rooms?: LiveRoom[] }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col border-t border-white/8 pt-7">
       <h2 className={LABEL}>Room heat · {HEAT_WINDOW_MIN} min</h2>
-      <ul className="mt-5 flex flex-col gap-4">
+      <ul className="mt-5 flex flex-col gap-3">
         {rooms
           ? shown.map((r, i) => (
               <li key={r.room}>
@@ -283,7 +283,7 @@ function QrTile({ qrDataUrl, joinUrl }: { qrDataUrl: string; joinUrl: string }) 
         <img src={qrDataUrl} alt={`QR code for ${joinUrl}`} width={196} height={196} className="block h-[196px] w-[196px]" />
       </div>
       <div className="min-w-0">
-        <p className="text-[52px] font-bold leading-none tracking-[-0.02em]">Scan to snap</p>
+        <p className="whitespace-nowrap text-[46px] font-bold leading-none tracking-[-0.02em]">Scan to snap</p>
         <p className="mt-4 break-all text-[26px] text-[#A1A1AA]">{joinUrl.replace(/^https?:\/\//, "")}</p>
       </div>
     </div>

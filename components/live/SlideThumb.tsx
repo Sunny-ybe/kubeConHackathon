@@ -33,6 +33,10 @@ export function SlideThumb({ slide, size, className = "" }: { slide: Slide; size
           alt={title}
           className="h-full w-full object-cover"
           onError={() => setFailed(true)}
+          // A server-rendered image can fail before hydration attaches onError.
+          ref={(el) => {
+            if (el?.complete && el.naturalWidth === 0) setFailed(true);
+          }}
         />
       )}
     </div>
