@@ -436,3 +436,27 @@ Optional, only if Dash0 is switched on (Agent E): `OTEL_EXPORTER_OTLP_ENDPOINT`,
 |---|---|
 | **F: rooms backend** | `app/api/rooms/**`, `app/api/snap`, `app/api/room/**`, `app/api/feed`, `app/api/live`, `app/api/search`, `app/api/ask`, `app/api/me`, `app/api/report`, `app/talk/**` (query filter only), `lib/vision.ts`, `lib/retrieval.ts`, `lib/llm.ts` |
 | **G: rooms UI** | `app/page.tsx`, `app/new/**`, `app/r/**`, `components/**` except `components/live/**`, `components/ask/**`, `components/report/**`; `lib/client.ts` |
+
+---
+
+## 15. Video uploads, downloads and search-to-download (v4)
+
+**Video (hosted rooms only).** Vercel functions accept at most 4.5 MB per request, so videos go **from the phone straight to Vercel Blob** with `upload()` from `@vercel/blob/client` (`access: "public"`, `handleUploadUrl: "/api/upload"`, `clientPayload: JSON.stringify(VideoUploadPayload)`, `multipart: true`).
+- Limits: `MAX_VIDEO_BYTES` (50 MB), `MAX_VIDEO_SECONDS` (60 s), types `VIDEO_TYPES`. The client checks size and duration (via a `<video>` element's metadata) before uploading and shows a clear message when over.
+- `POST /api/upload` (Agent H) uses `handleUpload` from `@vercel/blob/client`. `onBeforeGenerateToken` parses `clientPayload`, rejects unless the room is hosted, and returns `allowedContentTypes: VIDEO_TYPES`, `maximumSizeInBytes: MAX_VIDEO_BYTES`, `addRandomSuffix: true`. Pathnames are `videos/<room>/<name>`. `onUploadCompleted` does nothing (it doesn't fire on localhost).
+- After the upload, the client grabs a **poster frame** (seek to ~1 s, draw to canvas, 1280px JPEG plus 400px thumb) and posts it to `/api/snap` exactly like a photo, plus `video_url` and `duration_s`. Snap validates that `video_url` is on the Blob host (`*.public.blob.vercel-storage.com`), runs vision on the poster frame with the photo prompt prefixed by "This is a frame from a short video.", and stores `media:"video"`, `video_url`, `duration_s`. Moderation is unchanged (host approves guests' videos). Reject also deletes the blob (`del(video_url)`).
+- Cards show the poster with a play badge and the duration; the sheet plays `<video controls playsInline preload="metadata" poster=…>`. `/live` shows the poster.
+- Env: `BLOB_READ_WRITE_TOKEN` (set by connecting a public Blob store to the Vercel project; copy it into `.env.local` for local dev).
+
+**Downloads (A).** `GET /api/rooms/[room]/media?device_id=&scope=mine|all` returns `MediaResponse` (any room, hosted or scheduled). `mine` = this device's uploads including pending; `all` = everything visible to others (`PUBLIC_SLIDE`) plus mine. Newest first, up to `MAX_DOWNLOAD_ITEMS`.
+- Room page: a **Download** button opens a sheet with **My photos (N)** and **All photos (N)**.
+- `/me`: **Download all my photos** (across rooms, from `MeResponse`).
+- On phones that support `navigator.canShare({ files })`, and for up to 10 items, offer **Save to Photos** through the share sheet. Otherwise build a **.zip in the browser** (`lib/zip.ts`, stored/uncompressed, CRC32, no new dependency) with progress ("Preparing 12 of 40…"). Images come from `image_url` (the stored 1280px copy), videos from `video_url`. Filenames are `<room>-<NN>-<title-slug>.jpg|mp4`.
+
+**Search to download (C).** `/search` takes an optional `?room=` scope. The room header's search icon links to `/search?room=<room>`, showing a "In <room name>" chip that can be cleared. Results get a **Select** mode (checkbox per result, Select all) and a **Download (N)** button that uses the same download flow. Search already matches photo descriptions (alt_text) semantically, e.g. "red banner", "group on the rooftop". Make sure video results show the play badge.
+
+**Ownership (v4 agents)**
+| Owner | Files |
+|---|---|
+| **H: media backend** | `app/api/upload/**`, `app/api/snap`, `app/api/rooms/**`, `app/api/search`, `lib/retrieval.ts`, `lib/vision.ts` |
+| **I: media UI** | `components/**` except `components/live/**`; `app/r/**`, `app/search/**`, `app/me/**`, `lib/client.ts`, `lib/zip.ts` |
