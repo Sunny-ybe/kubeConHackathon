@@ -30,15 +30,34 @@ export type Slide = {
   mine?: boolean; // true if this device took it (set when device_id is passed)
   thumb_url: string; // /api/slides/{id}/image?size=thumb
   image_url: string; // /api/slides/{id}/image
+  status?: SlideStatus; // hosted rooms only; missing means approved
+  kind?: "slide" | "photo"; // "photo" = not a slide, accepted in a hosted room
 };
+
+/** Hosted rooms (SPEC §14): the host's photos are approved at once, everyone else's wait as "pending". */
+export type SlideStatus = "approved" | "pending";
 
 export type Citation = { label: string; slide: Slide }; // label like "S3"
 
 export type SnapResponse =
-  | { ok: true; slide: Slide; talk: Talk | null; cluster_size: number }
+  | { ok: true; slide: Slide; talk: Talk | null; cluster_size: number; pending?: boolean }
   | { ok: false; reason: "not_a_slide" | "too_large" | "error"; message: string };
 
-export type RoomResponse = { room: string; room_name: string; talk: Talk | null };
+export type RoomResponse = {
+  room: string;
+  room_name: string;
+  talk: Talk | null;
+  hosted?: boolean; // started with "Start a room": any photo allowed, host approves uploads
+  host?: boolean; // this device started the room (needs ?device_id=)
+  pending_count?: number; // only set for the host
+};
+
+// Hosted rooms (SPEC §14)
+export type CreateRoomRequest = { name?: string; device_id: string };
+export type CreateRoomResponse = { room: string; room_name: string };
+export type PendingResponse = { room: string; slides: Slide[] }; // newest first, host only
+export type ModerateRequest = { device_id: string; slide_id: string; action: "approve" | "reject" };
+export type ModerateResponse = { ok: boolean; slide_id: string; status: SlideStatus | "deleted" };
 
 export type FeedResponse = { room: string; talk: Talk | null; slides: Slide[] };
 
