@@ -29,15 +29,15 @@ export default function CitedMarkdown({
         h3: heading,
         h4: heading,
         p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
-        ul: ({ children }) => <ul className="my-2 list-disc space-y-2 pl-5 marker:text-[#A1A1AA]">{children}</ul>,
-        ol: ({ children }) => <ol className="my-2 list-decimal space-y-2 pl-5 marker:text-[#A1A1AA]">{children}</ol>,
+        ul: ({ children }) => <ul className="my-2 list-disc space-y-2 pl-5 marker:text-muted">{children}</ul>,
+        ol: ({ children }) => <ol className="my-2 list-decimal space-y-2 pl-5 marker:text-muted">{children}</ol>,
         strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
         code: ({ children }) => <code className="rounded bg-white/[0.06] px-1 py-0.5 font-mono text-[0.9em]">{children}</code>,
         a: ({ href, children }) => {
           const c = href?.startsWith("#cite-") ? byLabel.get(href.slice(6)) : undefined;
           if (c) return <CitationChip label={c.label} slide={c.slide} onOpen={() => onOpen(c)} />;
           return (
-            <a href={href} target="_blank" rel="noreferrer" className="text-[#FFB020] underline underline-offset-2">
+            <a href={href} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
               {children}
             </a>
           );

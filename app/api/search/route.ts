@@ -14,9 +14,12 @@ export async function GET(req: NextRequest) {
       deviceId: p.get("device_id") ?? "",
       room: p.get("room") || undefined,
       mine: p.get("mine") === "1",
-      size: 20,
+      size: 40,
     });
-    return NextResponse.json<SearchResponse>({ query: q, hits });
+    // One result per cluster (like the feed): ten snaps of one slide are one slide.
+    const seen = new Set<string>();
+    const unique = hits.filter((h) => !seen.has(h.slide.cluster_id) && seen.add(h.slide.cluster_id)).slice(0, 20);
+    return NextResponse.json<SearchResponse>({ query: q, hits: unique });
   } catch (err) {
     console.error("search failed", err);
     return NextResponse.json({ error: "Search is unavailable right now." }, { status: 500 });

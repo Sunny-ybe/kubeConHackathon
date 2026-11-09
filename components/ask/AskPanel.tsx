@@ -55,7 +55,7 @@ export default function AskPanel({ room, talkId }: AskPanelProps) {
   const noEvidence = state.kind === "done" && (state.res.answer === NO_EVIDENCE || !state.res.citations.length);
 
   return (
-    <section className="text-[#F4F4F5]" aria-label="Ask the slides">
+    <section className="text-fg" aria-label="Ask the slides">
       <form onSubmit={ask} className="flex gap-2">
         <label htmlFor="ask-input" className="sr-only">
           Ask a question about the slides
@@ -68,12 +68,12 @@ export default function AskPanel({ room, talkId }: AskPanelProps) {
           placeholder="What did they say about failover?"
           enterKeyHint="send"
           autoComplete="off"
-          className="h-14 min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#16161A] px-4 text-lg placeholder:text-[#A1A1AA]/70 focus-visible:border-[#FFB020]/60 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[#FFB020]/40"
+          className="h-14 min-w-0 flex-1 rounded-xl border border-line bg-surface px-4 text-lg placeholder:text-muted/70 focus-visible:border-accent/60 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent/40"
         />
         <button
           type="submit"
           disabled={!q.trim() || state.kind === "loading"}
-          className="h-14 shrink-0 rounded-xl bg-[#FFB020] px-5 text-lg font-semibold text-[#0A0A0C] transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FFB020] disabled:opacity-40"
+          className="h-14 shrink-0 rounded-xl bg-accent px-5 text-lg font-semibold text-on-accent transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
         >
           Ask
         </button>
@@ -81,12 +81,12 @@ export default function AskPanel({ room, talkId }: AskPanelProps) {
 
       <div aria-live="polite" aria-busy={state.kind === "loading"} className="mt-4">
         {state.kind === "idle" && (
-          <p className="text-base text-[#A1A1AA]">Answers come only from slides people snapped, with sources.</p>
+          <p className="text-base text-muted">Answers come only from slides people snapped, with sources.</p>
         )}
 
         {state.kind === "loading" && (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#16161A] p-5">
-            <p className="mb-4 text-base text-[#A1A1AA]">{LOADING_LINES[line]}</p>
+          <div className="rounded-2xl border border-line bg-surface p-5">
+            <p className="mb-4 text-base text-muted">{LOADING_LINES[line]}</p>
             <div className="space-y-3">
               <Shimmer className="h-4 w-full" />
               <Shimmer className="h-4 w-11/12" />
@@ -96,12 +96,12 @@ export default function AskPanel({ room, talkId }: AskPanelProps) {
         )}
 
         {state.kind === "error" && (
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#16161A] p-5">
-            <p className="text-base text-[#A1A1AA]">{state.message}</p>
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface p-5">
+            <p className="text-base text-muted">{state.message}</p>
             <button
               type="button"
               onClick={() => inputRef.current?.form?.requestSubmit()}
-              className="h-12 shrink-0 rounded-lg border border-white/[0.12] px-4 text-base font-medium hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-[#FFB020]"
+              className="h-12 shrink-0 rounded-lg border border-line-strong px-4 text-base font-medium hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-accent"
             >
               Try again
             </button>
@@ -109,32 +109,32 @@ export default function AskPanel({ room, talkId }: AskPanelProps) {
         )}
 
         {state.kind === "done" && noEvidence && (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#16161A] p-5">
+          <div className="rounded-2xl border border-line bg-surface p-5">
             <p className="text-lg font-medium">{NO_EVIDENCE}</p>
-            <p className="mt-1 text-base text-[#A1A1AA]">Try other words, or snap the slide when it comes up.</p>
+            <p className="mt-1 text-base text-muted">Try other words, or snap the slide when it comes up.</p>
           </div>
         )}
 
         {state.kind === "done" && !noEvidence && (
-          <div className="rounded-2xl border border-white/[0.08] bg-[#16161A] p-5">
-            <p className="mb-2 text-sm text-[#A1A1AA]">{state.q}</p>
+          <div className="rounded-2xl border border-line bg-surface p-5">
+            <p className="mb-2 text-sm text-muted">{state.q}</p>
             <div className="text-lg leading-relaxed">
               <CitedMarkdown markdown={state.res.answer} citations={state.res.citations} onOpen={setOpen} />
             </div>
-            <h3 className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-[#A1A1AA]">Sources</h3>
+            <h3 className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Sources</h3>
             <ul className="space-y-1">
               {state.res.citations.map((c) => (
                 <li key={c.label}>
                   <button
                     type="button"
                     onClick={() => setOpen(c)}
-                    className="flex min-h-12 w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-[#FFB020]"
+                    className="flex min-h-12 w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-accent"
                   >
-                    <span className="w-8 shrink-0 text-sm font-semibold tabular-nums text-[#FFB020]">{c.label}</span>
-                    <SlideThumb slide={c.slide} size="sm" className="w-20 shrink-0 rounded-md" />
+                    <span className="w-8 shrink-0 text-sm font-semibold tabular-nums text-accent">{c.label}</span>
+                    <SlideThumb slide={c.slide} size="sm" className="hidden w-20 shrink-0 rounded-md sm:block" />
                     <span className="min-w-0">
                       <span className="block truncate text-base font-medium">{c.slide.title || "Untitled slide"}</span>
-                      <span className="block truncate text-sm text-[#A1A1AA]">{slideMeta(c.slide)}</span>
+                      <span className="block truncate text-sm text-muted">{slideMeta(c.slide)}</span>
                     </span>
                   </button>
                 </li>
