@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Placeholder. Agent B owns this file and replaces it (SPEC §8 theme). */
+body {
+  background: #0a0a0c;
+  color: #f4f4f5;
+}
