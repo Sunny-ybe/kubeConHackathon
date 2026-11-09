@@ -389,3 +389,50 @@ Optional, only if Dash0 is switched on (Agent E): `OTEL_EXPORTER_OTLP_ENDPOINT`,
 - At each milestone in a task file, the agent pushes and opens (or updates) a PR into `main`.
 - CI (`.github/workflows/ci.yml`: lint + build) and Gitar (`.gitar/review/backrow.md`) review every PR. Fix CI failures and blocking Gitar comments before asking for a merge.
 - Only the human merges. Agents then `git fetch && git merge origin/main` before continuing.
+
+---
+
+## 14. Hosted rooms (v3: "Start a room")
+
+**Goal (the new demo):** I tap **Start a room**, get a QR, everyone scans it, anyone uploads any photo, I (the host) approve it, and it lands in everyone's live feed within ~4s. Ask and Search work over every approved photo.
+
+**Rules**
+- Anyone can start a room. The device that starts it is the **host**: identified by its anonymous `device_id`, stored server-side as `owner_device_id` in `backrow-rooms`, and **never returned to clients**.
+- Hosted rooms accept **any photo** (no `not_a_slide` rejection). Moderation by the host replaces the slide filter as the guardrail.
+- The host's uploads are `status:"approved"` at once. Everyone else's are `status:"pending"` until the host approves (→ `approved`) or rejects (→ document deleted).
+- **Visible-to-others rule everywhere** (feed, search, Ask, report crowd slides, `/live`, `/talk`): `shared && is_slide && status != "pending"` → use `PUBLIC_SLIDE` from `lib/server/slides.ts`. An uploader always sees their own docs (including pending) in their feed, marked "Waiting for host".
+- Accepted hosted-room photos are stored with `is_slide: true` (meaning "accepted content") and `kind: "photo"` when vision says it is not a slide, `kind: "slide"` otherwise. Photos skip duplicate grouping (`cluster_id = slide_id`).
+- Scheduled rooms from `data/schedule.json` (`demo`, `kc-a`, …) behave exactly as before.
+- Room names: optional, user-typed; blank → random readable name (e.g. "Amber Falcon"). Slug = kebab-case name + "-" + 4 random base36 chars (e.g. `team-offsite-x7k2`), unique.
+
+**Data**
+- `backrow-rooms` (`_id` = room slug): `room`, `name`, `owner_device_id`, `created_at`.
+- On create, also index a talk in `backrow-talks`: `talk_id = room`, `room`, `room_name = name`, `title = name`, `speakers = "Hosted on Backrow"`, `abstract = ""`, `start = now`, `end = now + HOSTED_ROOM_HOURS`. Attribution then tags snaps to it.
+- New slide fields: `status` (keyword), `kind` (keyword). Mapped by `scripts/setup-es.mjs` (safe to rerun).
+
+**API (types in `lib/types.ts`)**
+
+| Method and route | Input | Output |
+|---|---|---|
+| `POST /api/rooms` | `CreateRoomRequest` | `CreateRoomResponse` |
+| `GET /api/room/[room]?device_id=` | none | `RoomResponse` with `hosted`, `host`, and `pending_count` (host only) |
+| `POST /api/snap` | unchanged | `SnapResponse`; `pending: true` when it waits for the host |
+| `GET /api/rooms/[room]/pending?device_id=` | none | `PendingResponse` (403 unless host) |
+| `POST /api/rooms/[room]/moderate` | `ModerateRequest` | `ModerateResponse` (403 unless host) |
+
+**Vision for hosted rooms:** use a photo-friendly prompt: `title` = the slide title or a short caption (max 8 words) for any other photo; `text` = readable text verbatim; `alt_text` = 1–3 sentences describing the image (so Search and Ask can find it by content); `topics` as before. Never identify or describe people's faces, identity or clothing; say "a person" at most.
+
+**Screens**
+| Route | What it shows |
+|---|---|
+| `/` | Primary **Start a room** button at the top; existing room list below. |
+| `/new` | "Name your room (optional)" input + **Start room**. Creates the room, then goes to `/r/<room>/share`. |
+| `/r/[room]/share` | White tile with a huge QR to `NEXT_PUBLIC_APP_URL/r/<room>` (generate client-side with `window.location.origin` as fallback), the room name, the link, **Copy link**, **Share** (`navigator.share`), **Enter room**. Readable when held up to a crowd. |
+| `/r/[room]` (hosted) | Header shows the room name, a **Share / QR** button for everyone, and "You're hosting" for the host. Host gets a **Pending · N** tab with photo cards and big **Approve** / **Reject** buttons (polls every `FEED_POLL_MS`). Non-host uploads show "Sent to the host. It appears for everyone once approved." Bottom bar: **Snap** (camera) + **Upload photos** (camera roll, `multiple`, up to `MAX_BATCH_UPLOAD`, sequential with "Uploading 3 of 8…"). |
+| Slide sheet | For `kind:"photo"` label the alt text "Description" (not "Diagram"); Read aloud reads text, else the description. |
+
+**Ownership (v3 agents)**
+| Owner | Files |
+|---|---|
+| **F: rooms backend** | `app/api/rooms/**`, `app/api/snap`, `app/api/room/**`, `app/api/feed`, `app/api/live`, `app/api/search`, `app/api/ask`, `app/api/me`, `app/api/report`, `app/talk/**` (query filter only), `lib/vision.ts`, `lib/retrieval.ts`, `lib/llm.ts` |
+| **G: rooms UI** | `app/page.tsx`, `app/new/**`, `app/r/**`, `components/**` except `components/live/**`, `components/ask/**`, `components/report/**`; `lib/client.ts` |
