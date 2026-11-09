@@ -13,14 +13,18 @@ function fromSlug(room: string): string {
 
 /** Scheduled rooms come from data/schedule.json; hosted rooms from backrow-rooms. Never throws.
  *  Cached per request, so metadata and the page share one lookup. */
-export const displayRoomName = cache(async (room: string): Promise<string> => {
+export const roomMeta = cache(async (room: string): Promise<{ name: string; hosted: boolean }> => {
   const scheduled = rooms.find((r) => r.room === room);
-  if (scheduled) return scheduled.name;
+  if (scheduled) return { name: scheduled.name, hosted: false };
   try {
     const doc = await es().get<{ name?: string }>({ index: ROOMS_INDEX, id: room });
-    if (doc._source?.name) return doc._source.name;
+    if (doc.found) return { name: doc._source?.name || fromSlug(room), hosted: true };
   } catch {
     /* not found or ES unavailable */
   }
-  return fromSlug(room);
+  return { name: fromSlug(room), hosted: false };
 });
+
+export async function displayRoomName(room: string): Promise<string> {
+  return (await roomMeta(room)).name;
+}
