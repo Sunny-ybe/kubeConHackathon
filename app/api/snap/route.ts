@@ -6,6 +6,7 @@ import { fingerprint, jaccard, toSlide } from "@/lib/server/slides";
 import { span } from "@/lib/server/trace";
 import { readSlide } from "@/lib/vision";
 import { talkAt, talkById } from "../room/attribution";
+import { hostedRoom, isHost } from "../room/hosted";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     const image = form.get("image");
     const thumb = form.get("thumb");
     const deviceId = String(form.get("device_id") ?? "");
-    const shared = form.get("shared") === "true";
+    let shared = form.get("shared") === "true";
     const talkOverride = String(form.get("talk_id") ?? "").trim();
     const takenOverride = String(form.get("taken_at") ?? "").trim();
     let room = String(form.get("room") ?? "").trim();
@@ -66,14 +67,22 @@ export async function POST(req: Request) {
         ? new Date(takenOverride).toISOString()
         : new Date().toISOString();
 
+    // Hosted rooms (SPEC §14) take any photo; the host's approval replaces the slide filter.
+    const hosted = await hostedRoom(room);
+    const host = isHost(hosted, deviceId);
+    // Uploading to a hosted room means sharing with it (the host moderates).
+    if (hosted) shared = true;
+
     // Attribution doesn't depend on vision, so run both at once to keep snaps fast.
     const [reading, talk] = await Promise.all([
-      span("snap.vision", () => readSlide(buf), { room }),
+      span("snap.vision", () => readSlide(buf, { photo: !!hosted }), { room }),
       span<Talk | null>("snap.attribute", () => (talkOverride ? talkById(talkOverride) : talkAt(room, takenAt)), {
         room,
       }),
     ]);
-    if (!reading.is_slide) return fail("not_a_slide", "That doesn't look like a slide. Try again?", 200);
+    if (!hosted && !reading.is_slide) return fail("not_a_slide", "That doesn't look like a slide. Try again?", 200);
+    const isPhoto = !!hosted && !reading.is_slide;
+    const pending = !!hosted && !host;
 
     if (!room && talk) room = talk.room;
     const talkId = talk?.talk_id ?? (talkOverride || `${room}-open`);
@@ -81,10 +90,10 @@ export async function POST(req: Request) {
 
     const slideId = randomUUID();
     const content = `${reading.title} ${reading.text}`;
-    const clusterId = await span("snap.cluster", () => clusterFor(talkId, takenAt, content, slideId), {
-      room,
-      talk_id: talkId,
-    });
+    // Photos skip duplicate grouping: every photo is its own cluster.
+    const clusterId = isPhoto
+      ? slideId
+      : await span("snap.cluster", () => clusterFor(talkId, takenAt, content, slideId), { room, talk_id: talkId });
 
     const document = {
       slide_id: slideId,
@@ -100,6 +109,7 @@ export async function POST(req: Request) {
       alt_text: reading.alt_text,
       topics: reading.topics,
       cluster_id: clusterId,
+      ...(hosted ? { status: pending ? "pending" : "approved", kind: isPhoto ? "photo" : "slide" } : {}),
       image: buf.toString("base64"),
       thumb: thumbBuf.toString("base64"),
     };
@@ -109,6 +119,10 @@ export async function POST(req: Request) {
       async () => {
         // No refresh: keeps snaps fast. Count the cluster's existing docs alongside the write
         // (the count returns long before semantic_text inference finishes), then add 1 for this one.
+        if (isPhoto) {
+          await es().index({ index: SLIDES_INDEX, id: slideId, document });
+          return 1;
+        }
         const [{ count }] = await Promise.all([
           es().count({ index: SLIDES_INDEX, query: { term: { cluster_id: clusterId } } }),
           es().index({ index: SLIDES_INDEX, id: slideId, document }),
@@ -123,6 +137,7 @@ export async function POST(req: Request) {
       slide: toSlide(slideId, document, { deviceId, snaps: clusterSize }),
       talk,
       cluster_size: clusterSize,
+      ...(hosted ? { pending } : {}),
     };
     return Response.json(body);
   } catch (err) {

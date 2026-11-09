@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Citation, ReportResponse, Slide } from "@/lib/types";
 import { SLIDES_INDEX, formatTime } from "@/lib/config";
 import { es } from "@/lib/server/es";
-import { HEAVY_FIELDS, toSlide } from "@/lib/server/slides";
+import { HEAVY_FIELDS, PUBLIC_SLIDE, toSlide } from "@/lib/server/slides";
 import { span } from "@/lib/server/trace";
 import { extractCitations, reportLLM, slideBlock } from "@/lib/llm";
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         _source_excludes: HEAVY_FIELDS,
         query: {
           bool: {
-            filter: [{ terms: { talk_id: talkIds } }, { term: { is_slide: true } }, { term: { shared: true } }],
+            filter: [{ terms: { talk_id: talkIds } }, PUBLIC_SLIDE],
             must_not: [{ term: { device_id: deviceId } }],
           },
         },
