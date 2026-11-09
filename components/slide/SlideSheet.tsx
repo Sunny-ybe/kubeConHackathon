@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { LANGS, formatTime } from "@/lib/config";
 import { translate } from "@/lib/client";
 import type { Slide } from "@/lib/types";
-import { CloseIcon, DiagramIcon, SpeakerIcon, StopIcon, TranslateIcon, UsersIcon } from "@/components/icons";
+import { ClockIcon, CloseIcon, DiagramIcon, ImageIcon, SpeakerIcon, StopIcon, TranslateIcon, UsersIcon } from "@/components/icons";
 import { useDialog } from "@/components/hooks/useDialog";
 import { useSpeech } from "@/components/hooks/useSpeech";
 import SlideImage from "./SlideImage";
@@ -26,7 +26,10 @@ export default function SlideSheet({ slide, roomName, onClose }: Props) {
 
   const shown = lang && translated ? translated : original;
   const snaps = slide.snaps ?? 1;
-  const title = shown.title || "Untitled slide";
+  const photo = slide.kind === "photo";
+  // Photos (hosted rooms) describe the image; slides describe their diagram.
+  const altLabel = photo ? "Description" : "Diagram";
+  const title = shown.title || (photo ? "Untitled photo" : "Untitled slide");
 
   async function chooseLang(code: string) {
     stop();
@@ -55,7 +58,9 @@ export default function SlideSheet({ slide, roomName, onClose }: Props) {
 
   function toggleRead() {
     if (speaking) return stop();
-    const parts = [shown.title, shown.text, shown.alt && `${lang ? "" : "Diagram: "}${shown.alt}`];
+    const parts = photo
+      ? [shown.title, shown.text || shown.alt]
+      : [shown.title, shown.text, shown.alt && `${lang ? "" : "Diagram: "}${shown.alt}`];
     speak(parts.filter(Boolean).join(".\n"), translated ? lang?.speech : "en-US");
   }
 
@@ -93,21 +98,35 @@ export default function SlideSheet({ slide, roomName, onClose }: Props) {
 
           <p className="mt-5 text-sm text-muted">
             <span className="text-fg/90">{slide.talk_title || "Open session"}</span>
-            <span aria-hidden="true"> · </span>
-            {roomName}
+            {/* Hosted rooms: the talk is named after the room, so don't say it twice. */}
+            {roomName !== slide.talk_title && (
+              <>
+                <span aria-hidden="true"> · </span>
+                {roomName}
+              </>
+            )}
             <span aria-hidden="true"> · </span>
             <span className="tabular-nums">{formatTime(slide.taken_at)}</span>
           </p>
           <h2 id="sheet-title" lang={textLang} className="mt-1.5 text-[28px] leading-[1.15] font-semibold tracking-tight text-balance">
             {title}
           </h2>
-          <p className="mt-3 flex items-center gap-2 text-[15px] text-muted">
-            <UsersIcon size={18} />
-            <span>
-              Snapped by <span className="font-semibold text-fg tabular-nums">{snaps}</span>{" "}
-              {snaps === 1 ? "person" : "people"}
-            </span>
-          </p>
+          {slide.status === "pending" ? (
+            <p className="mt-3 flex items-center gap-2 text-[15px] text-muted">
+              <ClockIcon size={18} />
+              <span>Waiting for host. Only you can see it for now.</span>
+            </p>
+          ) : (
+            !photo && (
+              <p className="mt-3 flex items-center gap-2 text-[15px] text-muted">
+                <UsersIcon size={18} />
+                <span>
+                  Snapped by <span className="font-semibold text-fg tabular-nums">{snaps}</span>{" "}
+                  {snaps === 1 ? "person" : "people"}
+                </span>
+              </p>
+            )
+          )}
 
           <div className="mt-5 grid grid-cols-2 gap-2.5">
             <button
@@ -165,15 +184,15 @@ export default function SlideSheet({ slide, roomName, onClose }: Props) {
             <p lang={textLang} className="mt-6 text-slide whitespace-pre-line text-fg">
               {shown.text}
             </p>
-          ) : (
+          ) : photo ? null : (
             <p className="mt-6 text-lg text-muted">No readable text on this slide.</p>
           )}
 
           {shown.alt && status !== "loading" && (
-            <section aria-label="Diagram" className="mt-7 rounded-2xl border border-line bg-canvas/50 p-5">
+            <section aria-label={altLabel} className="mt-7 rounded-2xl border border-line bg-canvas/50 p-5">
               <h3 className="flex items-center gap-2 text-xs font-medium tracking-wider text-muted uppercase">
-                <DiagramIcon size={16} />
-                Diagram
+                {photo ? <ImageIcon size={16} /> : <DiagramIcon size={16} />}
+                {altLabel}
               </h3>
               <p lang={textLang} className="mt-2.5 text-lg leading-relaxed text-fg/90">
                 {shown.alt}

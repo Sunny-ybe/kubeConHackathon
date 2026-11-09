@@ -15,6 +15,7 @@ function body(s: Slide) {
 }
 
 function readable(s: Slide) {
+  if (s.kind === "photo") return [s.title, body(s) || s.alt_text].filter(Boolean).join(".\n");
   return [s.title, body(s), s.alt_text && `Diagram: ${s.alt_text}`].filter(Boolean).join(".\n");
 }
 
