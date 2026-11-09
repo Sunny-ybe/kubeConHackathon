@@ -6,6 +6,7 @@ import {
   BackrowMark,
   BroadcastIcon,
   CameraIcon,
+  PlusIcon,
   QrIcon,
   SearchIcon,
   StackIcon,
@@ -59,13 +60,25 @@ export default function Home() {
             Photograph any slide from your seat. Backrow reads it, files it under the talk, and groups it with
             everyone else&apos;s snaps.
           </p>
-          <Link
-            href={`/r/${DEMO_ROOM}`}
-            className="mt-9 inline-flex h-14 items-center gap-3 rounded-2xl bg-accent pr-5 pl-4 text-[17px] font-semibold text-on-accent transition-transform active:scale-[0.98]"
-          >
-            <CameraIcon size={22} />
-            Open the demo room
-          </Link>
+          <div className="mt-9 flex flex-col gap-2.5 min-[420px]:flex-row">
+            <Link
+              href="/new"
+              className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-accent pr-5 pl-4 text-[17px] font-semibold text-on-accent transition-transform active:scale-[0.98]"
+            >
+              <PlusIcon size={22} />
+              Start a room
+            </Link>
+            <Link
+              href={`/r/${DEMO_ROOM}`}
+              className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl border border-line-strong pr-5 pl-4 text-[17px] font-semibold transition-[transform,background-color] hover:bg-surface active:scale-[0.98]"
+            >
+              <CameraIcon size={22} className="text-muted" />
+              Open the demo room
+            </Link>
+          </div>
+          <p className="mt-4 max-w-[38ch] text-[15px] leading-relaxed text-muted">
+            Guests scan your QR and add photos. You approve what everyone sees.
+          </p>
 
         </section>
 
