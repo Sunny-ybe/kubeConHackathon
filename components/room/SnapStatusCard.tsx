@@ -5,12 +5,12 @@ import { AlertIcon, CameraIcon, CloseIcon } from "@/components/icons";
 const LINES = ["Reading the slide…", "Finding the talk…", "Checking who else snapped it…"];
 
 /** Shaped like a slide card while /api/snap works; cycles the SPEC §2 status lines. */
-export function SnapLoadingCard() {
+export function SnapLoadingCard({ lines = LINES }: { lines?: readonly string[] }) {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep((s) => (s + 1) % LINES.length), 1700);
+    const t = setInterval(() => setStep((s) => (s + 1) % lines.length), 1700);
     return () => clearInterval(t);
-  }, []);
+  }, [lines.length]);
 
   return (
     <li className="animate-rise">
@@ -21,11 +21,11 @@ export function SnapLoadingCard() {
       </div>
       <div role="status" aria-live="polite" className="mt-3">
         <p key={step} className="animate-fade text-[17px] leading-snug font-semibold tracking-tight">
-          {LINES[step]}
+          {lines[step % lines.length]}
         </p>
       </div>
       <div className="mt-2.5 flex gap-1.5" aria-hidden="true">
-        {LINES.map((_, i) => (
+        {lines.map((_, i) => (
           <span
             key={i}
             className={`h-1 flex-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-accent" : "bg-line-strong"}`}
