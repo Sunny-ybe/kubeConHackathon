@@ -2,10 +2,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import AskPanel from "@/components/ask/AskPanel";
+import EasyReader from "@/components/easy/EasyReader";
 import { BackrowMark, CameraIcon, ExpandIcon, SearchIcon, StackIcon } from "@/components/icons";
 import { useFeed } from "@/components/hooks/useFeed";
 import { useSharePref } from "@/components/hooks/useSharePref";
 import SlideCard, { SlideCardSkeleton } from "@/components/slide/SlideCard";
+import SlideSheet from "@/components/slide/SlideSheet";
 import { formatTime } from "@/lib/config";
 import { getRoom, snap } from "@/lib/client";
 import type { SharePref } from "@/lib/device";
@@ -32,6 +34,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
   const [tab, setTab] = useState<TabId>("feed");
   const [snapState, setSnapState] = useState<SnapState>({ status: "idle" });
   const [mySnaps, setMySnaps] = useState<Slide[]>([]);
+  const [open, setOpen] = useState<Slide | null>(null);
   const [asking, setAsking] = useState(false);
   const [resultNote, setResultNote] = useState("");
   const [sharePref, setSharePref] = useSharePref();
@@ -76,6 +79,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
       setResultNote(
         `Saved “${slide.title || "your slide"}”. Snapped by ${res.cluster_size} ${res.cluster_size === 1 ? "person" : "people"}.`,
       );
+      setOpen(slide);
       refresh();
     } else {
       setSnapState({
@@ -232,7 +236,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
                   />
                 )}
                 {slides
-                  ? slides.map((s, i) => <SlideCard key={s.cluster_id} slide={s} index={i} onOpen={() => {}} />)
+                  ? slides.map((s, i) => <SlideCard key={s.cluster_id} slide={s} index={i} onOpen={setOpen} />)
                   : [0, 1, 2].map((i) => <SlideCardSkeleton key={i} />)}
               </ul>
             )}
@@ -250,7 +254,9 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
                 Full screen
               </Link>
             </div>
-            <p className="text-lg text-muted">Big-text reading view for this room.</p>
+            <div className="flex flex-col rounded-3xl border border-line bg-black p-6 sm:p-10">
+              <EasyReader slides={slides} compact />
+            </div>
           </div>
         )}
 
@@ -273,6 +279,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
       />
       {tab !== "ask" && <SnapBar busy={snapState.status === "loading"} onSnap={startSnap} />}
       {asking && <ShareModal onChoose={chooseShare} onCancel={() => setAsking(false)} />}
+      {open && <SlideSheet slide={open} roomName={roomName} onClose={() => setOpen(null)} />}
     </div>
   );
 }

@@ -11,7 +11,7 @@ export default function SnapBar({ busy, onSnap }: Props) {
         type="button"
         onClick={onSnap}
         disabled={busy}
-        className="pointer-events-auto mx-auto flex h-16 w-full max-w-md items-center justify-center gap-3 rounded-2xl bg-accent text-lg font-semibold tracking-tight text-on-accent transition-[transform,opacity] active:scale-[0.98] disabled:opacity-70"
+        className="pointer-events-auto mx-auto flex h-16 w-full max-w-md items-center justify-center gap-3 rounded-2xl bg-accent text-lg font-semibold tracking-tight text-on-accent transition-[transform,opacity] active:scale-[0.98] disabled:bg-raised disabled:text-fg"
       >
         <CameraIcon size={24} />
         {busy ? "Reading your snap…" : "Snap a slide"}
