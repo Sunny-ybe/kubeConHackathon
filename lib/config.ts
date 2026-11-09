@@ -30,3 +30,13 @@ export type LangCode = (typeof LANGS)[number]["code"];
 export function imageUrl(slideId: string, size: "thumb" | "full" = "full"): string {
   return `/api/slides/${encodeURIComponent(slideId)}/image${size === "thumb" ? "?size=thumb" : ""}`;
 }
+
+/** The event runs on Mountain Time. Servers (Vercel) run on UTC, so always format with this. */
+export const EVENT_TZ = "America/Denver";
+
+/** "2:41 PM" in Denver time. Use this for every time shown in the UI; never toLocaleTimeString() bare. */
+export function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("en-US", { timeZone: EVENT_TZ, hour: "numeric", minute: "2-digit" });
+}
