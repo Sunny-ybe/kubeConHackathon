@@ -32,6 +32,9 @@ export type Slide = {
   image_url: string; // /api/slides/{id}/image
   status?: SlideStatus; // hosted rooms only; missing means approved
   kind?: "slide" | "photo"; // "photo" = not a slide, accepted in a hosted room
+  media?: "image" | "video"; // missing means image (SPEC §15)
+  video_url?: string; // public Vercel Blob URL; image_url/thumb_url are its poster frame
+  duration_s?: number; // video length in seconds
 };
 
 /** Hosted rooms (SPEC §14): the host's photos are approved at once, everyone else's wait as "pending". */
@@ -58,6 +61,12 @@ export type CreateRoomResponse = { room: string; room_name: string };
 export type PendingResponse = { room: string; slides: Slide[] }; // newest first, host only
 export type ModerateRequest = { device_id: string; slide_id: string; action: "approve" | "reject" };
 export type ModerateResponse = { ok: boolean; slide_id: string; status: SlideStatus | "deleted" };
+
+// Media + downloads (SPEC §15)
+/** clientPayload sent with @vercel/blob/client upload() to /api/upload (JSON-encoded). */
+export type VideoUploadPayload = { room: string; device_id: string };
+/** GET /api/rooms/[room]/media?device_id=&scope=mine|all — everything downloadable, newest first. */
+export type MediaResponse = { room: string; scope: "mine" | "all"; items: Slide[] };
 
 export type FeedResponse = { room: string; talk: Talk | null; slides: Slide[] };
 

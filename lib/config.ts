@@ -6,6 +6,13 @@ export const ROOMS_INDEX = "backrow-rooms"; // hosted rooms (SPEC §14)
 
 /** Max photos per "Upload photos" batch from the camera roll. */
 export const MAX_BATCH_UPLOAD = 20;
+/** Video uploads (SPEC §15): hosted rooms only, straight from the phone to Vercel Blob. */
+export const MAX_VIDEO_BYTES = 50_000_000;
+export const MAX_VIDEO_SECONDS = 60;
+export const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"] as const;
+/** Max items per download (zip or share sheet). */
+export const MAX_DOWNLOAD_ITEMS = 200;
+
 /** Hosted rooms stay open this long (their talk window). */
 export const HOSTED_ROOM_HOURS = 72;
 

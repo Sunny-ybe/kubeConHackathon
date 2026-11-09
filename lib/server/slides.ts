@@ -28,6 +28,9 @@ export function toSlide(id: string, src: any, opts: { snaps?: number; deviceId?:
     image_url: imageUrl(id, "full"),
     status: src.status === "pending" ? "pending" : src.status === "approved" ? "approved" : undefined,
     kind: src.kind === "photo" ? "photo" : src.kind === "slide" ? "slide" : undefined,
+    media: src.media === "video" ? "video" : undefined,
+    video_url: typeof src.video_url === "string" ? src.video_url : undefined,
+    duration_s: typeof src.duration_s === "number" ? src.duration_s : undefined,
   };
 }
 
