@@ -10,14 +10,14 @@ import PendingPanel from "@/components/rooms/PendingPanel";
 import { useSharePref } from "@/components/hooks/useSharePref";
 import SlideCard, { SlideCardSkeleton } from "@/components/slide/SlideCard";
 import SlideSheet from "@/components/slide/SlideSheet";
-import { formatTime } from "@/lib/config";
+import { MAX_BATCH_UPLOAD, formatTime } from "@/lib/config";
 import { getRoom, snap } from "@/lib/client";
 import type { SharePref } from "@/lib/device";
 import type { RoomResponse, Slide, Talk } from "@/lib/types";
 import ShareModal from "./ShareModal";
 import ShareToggle from "./ShareToggle";
 import SnapBar from "./SnapBar";
-import { SnapErrorCard, SnapLoadingCard } from "./SnapStatusCard";
+import { SnapErrorCard, SnapLoadingCard, UploadProgressCard } from "./SnapStatusCard";
 
 type TabId = "feed" | "pending" | "easy" | "ask";
 const TABS: { id: TabId; label: string }[] = [
@@ -30,7 +30,12 @@ const HOST_TABS: { id: TabId; label: string }[] = [TABS[0], { id: "pending", lab
 const HOSTED_LINES = ["Reading the photo…", "Writing a description…", "Adding it to the room…"];
 const GUEST_LINES = ["Reading the photo…", "Writing a description…", "Sending it to the host…"];
 
-type SnapState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string };
+type SnapState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "batch"; current: number; total: number }
+  | { status: "error"; message: string };
+type Notice = { title: string; body: string };
 
 type Props = { room: string; roomName: string; hosted: boolean; fallbackTalk: Talk | null };
 
@@ -43,9 +48,10 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
   const [open, setOpen] = useState<Slide | null>(null);
   const [asking, setAsking] = useState(false);
   const [resultNote, setResultNote] = useState("");
-  const [sentNote, setSentNote] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [sharePref, setSharePref] = useSharePref();
   const fileRef = useRef<HTMLInputElement>(null);
+  const rollRef = useRef<HTMLInputElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
@@ -93,7 +99,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
     if (!file) return;
     setTab("feed");
     setResultNote("");
-    setSentNote(false);
+    setNotice(null);
     setSnapState({ status: "loading" });
     window.scrollTo({ top: 0, behavior: "smooth" });
     const res = await snap(file, room);
@@ -108,7 +114,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
       setSnapState({ status: "idle" });
       if (res.pending) {
         // Guests in a hosted room: no sheet, just a clear "sent" note on top of the feed.
-        setSentNote(true);
+        setNotice({ title: "Sent to the host.", body: "It appears for everyone once approved." });
         setResultNote("Sent to the host. It appears for everyone once approved.");
       } else {
         setResultNote(
@@ -132,6 +138,57 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
                 : "Couldn't save that snap. Try again?",
       });
     }
+  }
+
+  /** Upload photos: up to MAX_BATCH_UPLOAD from the camera roll, one at a time, then one summary. */
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = [...(e.target.files ?? [])];
+    e.target.value = "";
+    if (picked.length === 0) return;
+    const files = picked.slice(0, MAX_BATCH_UPLOAD);
+    setTab("feed");
+    setResultNote("");
+    setNotice(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    let added = 0;
+    let waiting = 0;
+    let failed = 0;
+    for (let i = 0; i < files.length; i++) {
+      setSnapState({ status: "batch", current: i + 1, total: files.length });
+      setResultNote(`Uploading ${i + 1} of ${files.length}…`);
+      const res = await snap(files[i], room);
+      if (!res.ok) {
+        failed++;
+        continue;
+      }
+      const slide: Slide = {
+        ...res.slide,
+        snaps: res.cluster_size,
+        mine: true,
+        ...(res.pending ? { status: "pending" as const } : {}),
+      };
+      if (res.pending) waiting++;
+      else added++;
+      setMySnaps((prev) => [slide, ...prev.filter((s) => s.cluster_id !== slide.cluster_id)]);
+    }
+    setSnapState({ status: "idle" });
+    refresh();
+    const ok = added + waiting;
+    const photos = (n: number) => `${n} ${n === 1 ? "photo" : "photos"}`;
+    const extra = [
+      failed > 0 ? `${photos(failed)} couldn't be uploaded. Try ${failed === 1 ? "it" : "them"} again.` : "",
+      picked.length > files.length ? `Only the first ${MAX_BATCH_UPLOAD} were sent.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const next: Notice =
+      ok === 0
+        ? { title: "Nothing was uploaded.", body: extra || "Check your connection and try again." }
+        : waiting > 0
+          ? { title: `Sent ${photos(ok)} to the host.`, body: `They appear for everyone once approved. ${extra}`.trim() }
+          : { title: `Added ${photos(ok)} to the room.`, body: extra };
+    setNotice(next);
+    setResultNote(`${next.title} ${next.body}`.trim());
   }
 
   function onTabKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -305,16 +362,16 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
                 Can&apos;t reach the room right now. Trying again…
               </p>
             )}
-            {sentNote && (
+            {notice && (
               <div className="animate-rise mb-6 flex max-w-xl items-start gap-3 rounded-xl border border-line-strong bg-surface py-3 pr-1 pl-4">
                 <ClockIcon size={22} className="mt-0.5 shrink-0 text-accent" />
                 <p className="flex-1 py-0.5 text-[15px] leading-snug">
-                  <span className="font-semibold">Sent to the host.</span>{" "}
-                  <span className="text-muted">It appears for everyone once approved.</span>
+                  <span className="font-semibold">{notice.title}</span>{" "}
+                  <span className="text-muted">{notice.body}</span>
                 </p>
                 <button
                   type="button"
-                  onClick={() => setSentNote(false)}
+                  onClick={() => setNotice(null)}
                   aria-label="Dismiss"
                   className="-my-2 grid size-12 shrink-0 place-items-center rounded-full text-muted hover:text-fg"
                 >
@@ -346,6 +403,9 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
               </div>
             ) : (
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+                {snapState.status === "batch" && (
+                  <UploadProgressCard current={snapState.current} total={snapState.total} />
+                )}
                 {snapState.status === "loading" && (
                   <SnapLoadingCard lines={!hosted ? undefined : host ? HOSTED_LINES : GUEST_LINES} />
                 )}
@@ -402,8 +462,25 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
         tabIndex={-1}
         aria-label="Snap a slide"
       />
+      {hosted && (
+        <input
+          ref={rollRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={onFiles}
+          className="hidden"
+          tabIndex={-1}
+          aria-label="Upload photos"
+        />
+      )}
       {(tab === "feed" || tab === "easy") && (
-        <SnapBar busy={snapState.status === "loading"} onSnap={startSnap} label={hosted ? "Snap a photo" : undefined} />
+        <SnapBar
+          busy={snapState.status === "loading" || snapState.status === "batch"}
+          onSnap={startSnap}
+          onUpload={hosted ? () => rollRef.current?.click() : undefined}
+          label={hosted ? "Snap" : undefined}
+        />
       )}
       {asking && <ShareModal onChoose={chooseShare} onCancel={() => setAsking(false)} />}
       {open && <SlideSheet slide={open} roomName={name} onClose={() => setOpen(null)} />}

@@ -24,9 +24,10 @@ export default function SlideImage({ slide, size, large }: Props) {
 }
 
 export function TextTile({ slide, large }: { slide: Slide; large?: boolean }) {
-  const eyebrow = slide.topics[0] ?? "Slide";
+  const photo = slide.kind === "photo";
+  const eyebrow = slide.topics[0] ?? (photo ? "Photo" : "Slide");
   return (
-    <div role="img" aria-label={slide.title || "Untitled slide"} className="absolute inset-0 overflow-hidden bg-surface">
+    <div role="img" aria-label={slide.title || (photo ? "Untitled photo" : "Untitled slide")} className="absolute inset-0 overflow-hidden bg-surface">
       <div className="tile-grid absolute inset-0 [mask-image:radial-gradient(120%_90%_at_100%_0%,black,transparent_75%)]" />
       <div className="absolute top-0 left-0 h-full w-[3px] bg-accent/70" />
       <div className={`relative flex h-full flex-col justify-between ${large ? "p-6 sm:p-8" : "p-4"}`}>
@@ -36,7 +37,7 @@ export function TextTile({ slide, large }: { slide: Slide; large?: boolean }) {
             large ? "text-[26px] leading-[1.15] sm:text-4xl" : "text-xl leading-[1.2]"
           }`}
         >
-          {slide.title || "Untitled slide"}
+          {slide.title || (photo ? "Untitled photo" : "Untitled slide")}
         </p>
       </div>
     </div>
