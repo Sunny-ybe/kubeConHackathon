@@ -28,9 +28,9 @@
     {
       "talk_id": "lunch-panel",
       "room": "main",
-      "title": "Platform engineering in production: what we would do differently",
-      "speakers": "Platform leads from a retailer, a bank and a SaaS startup",
-      "abstract": "Three platform teams compare notes on internal developer platforms: golden paths people actually use, paved-road templates versus freedom, measuring developer experience, and the multi-cluster mistakes they would not repeat.",
+      "title": "Lunch panel (EDIT: real title)",
+      "speakers": "EDIT: panelists",
+      "abstract": "Panel during lunch at the Cloud Native Hackathon.",
       "start": "2026-11-09T14:00:00-07:00",
       "end": "2026-11-09T15:30:00-07:00"
     },
@@ -46,18 +46,18 @@
     {
       "talk_id": "kc-a-1",
       "room": "kc-a",
-      "title": "Surviving a region outage: multi-cluster failover on Kubernetes",
-      "speakers": "Platform team, Acme Retail",
-      "abstract": "How a retail platform runs active-passive across three clusters in two regions: health checks, global load balancing, data replication, and the failover runbook that cut recovery from hours to under a minute, plus what broke on the way.",
+      "title": "EDIT: KubeCon talk you seed from a recording",
+      "speakers": "EDIT: speakers",
+      "abstract": "EDIT: the talk's abstract, in your own words.",
       "start": "2026-11-09T09:00:00-07:00",
       "end": "2026-11-09T19:00:00-07:00"
     },
     {
       "talk_id": "kc-b-1",
       "room": "kc-b",
-      "title": "Observability for platform teams: from golden signals to SLOs with OpenTelemetry",
-      "speakers": "SRE team, Example Bank",
-      "abstract": "Rolling out OpenTelemetry across hundreds of services: collector topology, sampling that keeps the interesting traces, turning golden signals into SLOs and error budgets, and alerting on burn rate instead of noise.",
+      "title": "EDIT: second KubeCon talk you seed",
+      "speakers": "EDIT: speakers",
+      "abstract": "EDIT: the talk's abstract, in your own words.",
       "start": "2026-11-09T09:00:00-07:00",
       "end": "2026-11-09T19:00:00-07:00"
     }
