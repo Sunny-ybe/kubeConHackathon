@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { SnapResponse, Talk } from "@/lib/types";
-import { DEDUPE_JACCARD, DEDUPE_WINDOW_MIN, MAX_UPLOAD_BYTES, SLIDES_INDEX } from "@/lib/config";
+import { DEDUPE_JACCARD, DEDUPE_WINDOW_MIN, MAX_UPLOAD_BYTES, MAX_VIDEO_SECONDS, SLIDES_INDEX } from "@/lib/config";
 import { es } from "@/lib/server/es";
 import { fingerprint, jaccard, toSlide } from "@/lib/server/slides";
 import { span } from "@/lib/server/trace";
@@ -13,6 +13,16 @@ export const maxDuration = 60;
 
 function fail(reason: "not_a_slide" | "too_large" | "error", message: string, status: number) {
   return Response.json({ ok: false, reason, message } satisfies SnapResponse, { status });
+}
+
+/** A video's public URL, only when it is on our Vercel Blob host (SPEC §15). */
+function blobVideoUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") ? u.toString() : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Reuse a nearby duplicate's cluster_id (SPEC §6.3), else a deterministic fingerprint. */
@@ -54,10 +64,15 @@ export async function POST(req: Request) {
     const talkOverride = String(form.get("talk_id") ?? "").trim();
     const takenOverride = String(form.get("taken_at") ?? "").trim();
     let room = String(form.get("room") ?? "").trim();
+    // Video (SPEC §15): `image` is its poster frame; the video itself is already on Blob.
+    const videoRaw = String(form.get("video_url") ?? "").trim();
+    const videoUrl = videoRaw ? blobVideoUrl(videoRaw) : null;
+    const durationRaw = Number(form.get("duration_s"));
 
     if (!(image instanceof File) || image.size === 0) return fail("error", "Missing image", 400);
     if (image.size > MAX_UPLOAD_BYTES) return fail("too_large", "That photo is too large. Try again.", 413);
     if (!room && !talkOverride) return fail("error", "Missing room", 400);
+    if (videoRaw && !videoUrl) return fail("error", "That video link isn't from a Backrow upload.", 400);
 
     const buf = Buffer.from(await image.arrayBuffer());
     const thumbBuf = thumb instanceof File && thumb.size > 0 ? Buffer.from(await thumb.arrayBuffer()) : buf;
@@ -72,10 +87,11 @@ export async function POST(req: Request) {
     const host = isHost(hosted, deviceId);
     // Uploading to a hosted room means sharing with it (the host moderates).
     if (hosted) shared = true;
+    if (videoUrl && !hosted) return fail("error", "Videos can only be shared in rooms started on Backrow.", 400);
 
     // Attribution doesn't depend on vision, so run both at once to keep snaps fast.
     const [reading, talk] = await Promise.all([
-      span("snap.vision", () => readSlide(buf, { photo: !!hosted }), { room }),
+      span("snap.vision", () => readSlide(buf, { photo: !!hosted, video: !!videoUrl }), { room }),
       span<Talk | null>("snap.attribute", () => (talkOverride ? talkById(talkOverride) : talkAt(room, takenAt)), {
         room,
       }),
@@ -90,8 +106,8 @@ export async function POST(req: Request) {
 
     const slideId = randomUUID();
     const content = `${reading.title} ${reading.text}`;
-    // Photos skip duplicate grouping: every photo is its own cluster.
-    const clusterId = isPhoto
+    // Photos and videos skip duplicate grouping: each is its own cluster.
+    const clusterId = isPhoto || videoUrl
       ? slideId
       : await span("snap.cluster", () => clusterFor(talkId, takenAt, content, slideId), { room, talk_id: talkId });
 
@@ -110,6 +126,15 @@ export async function POST(req: Request) {
       topics: reading.topics,
       cluster_id: clusterId,
       ...(hosted ? { status: pending ? "pending" : "approved", kind: isPhoto ? "photo" : "slide" } : {}),
+      ...(videoUrl
+        ? {
+            media: "video",
+            video_url: videoUrl,
+            ...(Number.isFinite(durationRaw) && durationRaw > 0
+              ? { duration_s: Math.round(Math.min(durationRaw, MAX_VIDEO_SECONDS) * 10) / 10 }
+              : {}),
+          }
+        : {}),
       image: buf.toString("base64"),
       thumb: thumbBuf.toString("base64"),
     };
@@ -119,7 +144,7 @@ export async function POST(req: Request) {
       async () => {
         // No refresh: keeps snaps fast. Count the cluster's existing docs alongside the write
         // (the count returns long before semantic_text inference finishes), then add 1 for this one.
-        if (isPhoto) {
+        if (isPhoto || videoUrl) {
           await es().index({ index: SLIDES_INDEX, id: slideId, document });
           return 1;
         }
