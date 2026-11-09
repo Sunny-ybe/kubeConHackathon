@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 
 const TALKS = "backrow-talks";
 const SLIDES = "backrow-slides";
+const ROOMS = "backrow-rooms";
 
 if (!process.env.ES_URL || !process.env.ES_API_KEY) {
   console.error("Missing ES_URL / ES_API_KEY. Run: node --env-file=.env.local scripts/setup-es.mjs");
@@ -51,6 +52,8 @@ const slideMappings = {
     alt_text: { type: "text", copy_to: "semantic" },
     topics: { type: "keyword" },
     cluster_id: { type: "keyword" },
+    status: { type: "keyword" },
+    kind: { type: "keyword" },
     semantic,
     image: { type: "binary" },
     thumb: { type: "binary" },
@@ -70,11 +73,27 @@ async function ensure(index, mappings, reset) {
   console.log(`created ${index}`);
 }
 
+// Hosted rooms (SPEC §14). owner_device_id never leaves the server.
+const roomMappings = {
+  properties: {
+    room: { type: "keyword" },
+    name: { type: "text", fields: { raw: { type: "keyword" } } },
+    owner_device_id: { type: "keyword" },
+    created_at: { type: "date" },
+  },
+};
+
 const reset = process.argv.includes("--reset");
 
 try {
   await ensure(TALKS, talkMappings, reset);
   await ensure(SLIDES, slideMappings, reset);
+  await ensure(ROOMS, roomMappings, reset);
+  // Additive fields for hosted rooms; safe to rerun on an existing index.
+  await es.indices.putMapping({
+    index: SLIDES,
+    properties: { status: { type: "keyword" }, kind: { type: "keyword" } },
+  });
 } catch (err) {
   console.error("Index setup failed:", err?.meta?.body?.error ?? err);
   console.error("If the error mentions semantic_text or inference, set ES_INFERENCE_ID and rerun.");
