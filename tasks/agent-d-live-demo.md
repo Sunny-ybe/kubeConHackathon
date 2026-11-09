@@ -18,7 +18,8 @@ Run the dev server on **port 3004**. Read CLAUDE.md and SPEC.md (§2, §6.8 and 
 
 2. **`/live`**: a projector view at 1920×1080, dark. It has to read clearly from the back of the room: huge type, high contrast, nothing small.
    - A giant "slides snapped today" counter that counts up over about 600ms when it changes.
-   - **Snapping now:** the newest thumbnail fades in, with its room and talk.
+   - **Snapping now:** the newest thumbnail fades in, with its room, talk and time (`formatTime()`).
+   - The count-up, fade and pulse are skipped under `prefers-reduced-motion`.
    - **Most photographed:** the top 3, each with a ×N badge that pulses when it changes.
    - **Room heat:** a bar for each room, with that room's top slide.
    - A corner QR, "Scan to snap", pointing to `NEXT_PUBLIC_APP_URL/r/demo` (use the `qrcode` package).
@@ -39,8 +40,20 @@ Run the dev server on **port 3004**. Read CLAUDE.md and SPEC.md (§2, §6.8 and 
      - Ask and the report grounded only in real slides
    - Setup steps (SPEC §10 and `scripts/setup-es.mjs`).
    - An "AI assistance" section disclosing that AI coding assistants were used.
+   - An "Accessibility" section: big-text Easy read, Read aloud, translation, diagram alt text, and the checklist from SPEC §8.
+   - A "How we built it" section on the workflow: parallel agents on branches, atomic commits, PRs checked by CI and Gitar (`.gitar/review/backrow.md`).
 
 6. **Stretch:** `/talk/[id]`, a speaker stats page showing the talk's most-photographed slide, its count, and its clusters.
+
+
+## Git and PRs
+Branch `agent-d`. **Commit atomically**: one logical change per commit, each one building, staged by name (CLAUDE.md "Commits"). Open a PR into `main` at each milestone below and keep pushing to it; fix CI and blocking Gitar comments before asking the human to merge.
+
+## PR milestones
+1. **PR 1:** `/api/live` + `scripts/dev-insert-live.mjs`.
+2. **PR 2:** `/live` projector view.
+3. **PR 3:** `README.md` and `data/schedule.json`.
+4. **PR 4 (stretch):** `/talk/[id]`.
 
 ## Done when
 - `/live` updates within about 3 seconds of a new snap or a dev insert.

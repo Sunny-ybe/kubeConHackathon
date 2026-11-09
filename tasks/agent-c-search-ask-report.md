@@ -37,12 +37,22 @@ Run the dev server on **port 3003**. Read CLAUDE.md and SPEC.md (§6.5–6.9 and
 
 10. **`/search`**:
     - Search input.
-    - Each result shows a thumbnail (falling back to a text tile), title, "talk · room · time", and the highlight with `<em>` rendered bold.
+    - Each result shows a thumbnail (falling back to a text tile), title, "talk · room · time" (time via `formatTime()`), and the highlight with `<em>` rendered bold.
     - Filter chips: **All · Mine**.
 
 11. **`/me`**:
     - My slides grouped by talk.
     - A **Write my trip report** button that renders the markdown with `react-markdown`, with `[S#]` chips plus **Copy** and **Email** (mailto) buttons.
+
+Use `formatTime()` from `lib/config.ts` for the `{h:mm a}` times in the Ask and report prompts too, so Claude sees Denver times. Put the Ask answer and the report in an `aria-live="polite"` region, and give the `[S#]` chips an `aria-label` like "Slide 3: <title>".
+
+## Git and PRs
+Branch `agent-c`. **Commit atomically**: one logical change per commit, each one building, staged by name (CLAUDE.md "Commits"). Open a PR into `main` at each milestone below and keep pushing to it; fix CI and blocking Gitar comments before asking the human to merge.
+
+## PR milestones
+1. **PR 1:** `scripts/dev-insert-slides.mjs`, `lib/retrieval.ts`, `/api/search`, `/api/me`.
+2. **PR 2:** `/api/ask`, `/api/translate`, `lib/llm.ts`, `AskPanel`.
+3. **PR 3:** `/api/report`, `/search`, `/me` with the trip report.
 
 ## Done when
 - After running dev-insert, `/search?q=failover` shows bold highlights. A paraphrase like "switching to a backup cluster" also finds it, through semantic search.

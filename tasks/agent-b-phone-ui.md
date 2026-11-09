@@ -35,7 +35,7 @@ Until Agent A's routes are merged, set `NEXT_PUBLIC_USE_FIXTURES=1` in your `.en
    - Photo, title, text at 20–22px, and a "Diagram" box for the alt text.
    - **Read aloud** via `speechSynthesis`, triggered only by a tap, toggling to Stop.
    - **Translate** using `LANGS`, with "Show original". Set `utterance.lang` to the language's `speech` value.
-   - Talk tag, and "Snapped by N people".
+   - Talk tag (time via `formatTime()` from `lib/config.ts`), and "Snapped by N people".
 
 6. **`/r/[room]/easy`**:
    - Black background, white 28–36px text, max 38ch wide.
@@ -47,9 +47,30 @@ Until Agent A's routes are merged, set `NEXT_PUBLIC_USE_FIXTURES=1` in your `.en
    - One huge demo QR.
    - White background on this page so it prints well.
 
+## Accessibility checklist (Gitar checks this on every PR)
+- [ ] Every button and input has an accessible name; icon-only buttons have `aria-label`.
+- [ ] Every `<img>` has `alt` (the slide title).
+- [ ] The snap loading lines, snap result and "new slide" updates sit in an `aria-live="polite"` region.
+- [ ] The slide sheet is a dialog: `role="dialog"`, `aria-modal`, focus moves into it, Escape closes it, focus returns to the card.
+- [ ] Tabs use `role="tablist"` / `role="tab"` with `aria-selected`.
+- [ ] Tap targets at least 48px; focus rings visible.
+- [ ] Card slide-ins and badge pulses are disabled under `prefers-reduced-motion`.
+- [ ] Translated text gets a `lang` attribute; `<html lang="en">`.
+- [ ] Works with VoiceOver on the phone: snap, open a slide, Read aloud.
+
+## Git and PRs
+Branch `agent-b`. **Commit atomically**: one logical change per commit, each one building, staged by name (CLAUDE.md "Commits"). Open a PR into `main` at each milestone below and keep pushing to it; fix CI and blocking Gitar comments before asking the human to merge.
+
+## PR milestones
+1. **PR 1:** `lib/client.ts`, layout and theme, landing page (fixtures on).
+2. **PR 2:** `/r/[room]` with snap flow, share modal and feed.
+3. **PR 3:** slide sheet (Read aloud, Translate) and `/r/[room]/easy`.
+4. **PR 4:** `/qr`, plus the accessibility checklist above ticked off in the PR description.
+
 ## Done when
 On a real phone (run `npm run dev -- -H 0.0.0.0 -p 3002`, then open `http://<laptop-LAN-IP>:3002/r/demo`):
 - Snap opens the camera, the loading card shows, and the slide sheet opens with big text.
 - Read aloud speaks, and Translate swaps the text and back.
 - Easy read shows big text and advances when the feed changes.
+- The accessibility checklist above is done.
 - Everything looks good at 390px wide. There are no blank screens, and broken images fall back to text tiles.

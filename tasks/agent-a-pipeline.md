@@ -28,6 +28,7 @@ Run the dev server on **port 3001**. Read CLAUDE.md and SPEC.md first.
    - Returns `SnapResponse`.
    - Add `export const runtime = "nodejs"` and `export const maxDuration = 60`.
    - Store `image` and `thumb` as base64.
+   - Wrap the vision, attribution, clustering and indexing steps in `span()` from `lib/server/trace.ts`: `span("snap.vision", () => readSlide(buf))`, then `snap.attribute`, `snap.cluster`, `snap.index`. Add `room` and `talk_id` as attributes where you have them.
 
 4. **`GET /api/room/[room]`**: returns `RoomResponse`, using the attribution query (§6.2) with the current time. `room_name` comes from `data/schedule.json`.
 
@@ -43,6 +44,16 @@ Run the dev server on **port 3001**. Read CLAUDE.md and SPEC.md first.
    - Posts every image in the folder to `${process.env.SEED_URL ?? "http://localhost:3000"}/api/snap`.
    - Fields: `device_id=seed`, `shared=true`, the `talk_id`, and `taken_at` spaced one minute apart. Send the same file as both `image` and `thumb`.
    - Skip files over 2 MB with a warning. Print progress.
+
+
+## Git and PRs
+Branch `agent-a`. **Commit atomically**: one logical change per commit, each one building, staged by name (CLAUDE.md "Commits"). Open a PR into `main` at each milestone below and keep pushing to it; fix CI and blocking Gitar comments before asking the human to merge.
+
+## PR milestones
+1. **PR 1:** `lib/vision.ts` + `scripts/vision-test.mjs` (tell the human it is ready).
+2. **PR 2:** `/api/snap` with clustering and `span()` around each step.
+3. **PR 3:** `/api/room`, `/api/feed`, `/api/slides/[id]/image`.
+4. **PR 4:** `scripts/seed.mjs`.
 
 ## Done when
 - `curl -F image=@slide.jpg -F thumb=@slide.jpg -F room=demo -F device_id=t1 -F shared=true localhost:3001/api/snap` returns `ok: true` with `text`, `alt_text`, `talk` and `cluster_id`.
