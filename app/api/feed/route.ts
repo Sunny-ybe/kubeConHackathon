@@ -1,7 +1,7 @@
 import type { FeedResponse } from "@/lib/types";
 import { SLIDES_INDEX } from "@/lib/config";
 import { es } from "@/lib/server/es";
-import { HEAVY_FIELDS, toSlide } from "@/lib/server/slides";
+import { HEAVY_FIELDS, PUBLIC_SLIDE, toSlide } from "@/lib/server/slides";
 import { talkAt } from "../room/attribution";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +26,8 @@ export async function GET(req: Request) {
             { term: { is_slide: true } },
             ...(talk ? [{ term: { talk_id: talk.talk_id } }] : []),
           ],
-          // Other people's snaps only if shared; your own always.
-          should: [{ term: { shared: true } }, ...(deviceId ? [{ term: { device_id: deviceId } }] : [])],
+          // Other people's snaps only if public (shared, not waiting for the host); your own always.
+          should: [PUBLIC_SLIDE, ...(deviceId ? [{ term: { device_id: deviceId } }] : [])],
           minimum_should_match: 1,
         },
       },
