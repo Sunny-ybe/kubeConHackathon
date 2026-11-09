@@ -1,0 +1,65 @@
+{
+  "rooms": [
+    { "room": "demo", "name": "Demo Stage" },
+    { "room": "main", "name": "Main Room" },
+    { "room": "rooftop", "name": "Rooftop" },
+    { "room": "kc-a", "name": "KubeCon Hall A" },
+    { "room": "kc-b", "name": "KubeCon Hall B" }
+  ],
+  "talks": [
+    {
+      "talk_id": "demo-live",
+      "room": "demo",
+      "title": "Backrow live demo",
+      "speakers": "Team Backrow",
+      "abstract": "Snap a slide, keep the talk. Live demo at the Cloud Native Hackathon.",
+      "start": "2026-11-09T09:00:00-07:00",
+      "end": "2026-11-09T19:00:00-07:00"
+    },
+    {
+      "talk_id": "kickoff",
+      "room": "main",
+      "title": "Give your agent Radar: ship and debug on Kubernetes",
+      "speakers": "Nadav Erell, Roy Libman",
+      "abstract": "Getting a team environment, connecting a coding agent to Radar, shipping through it, and watching an AI SRE explain why a release broke.",
+      "start": "2026-11-09T10:00:00-07:00",
+      "end": "2026-11-09T11:00:00-07:00"
+    },
+    {
+      "talk_id": "lunch-panel",
+      "room": "main",
+      "title": "Lunch panel (EDIT: real title)",
+      "speakers": "EDIT: panelists",
+      "abstract": "Panel during lunch at the Cloud Native Hackathon.",
+      "start": "2026-11-09T14:00:00-07:00",
+      "end": "2026-11-09T15:30:00-07:00"
+    },
+    {
+      "talk_id": "presentations",
+      "room": "main",
+      "title": "Project presentations",
+      "speakers": "Hackathon teams",
+      "abstract": "Teams present what they built.",
+      "start": "2026-11-09T17:30:00-07:00",
+      "end": "2026-11-09T18:30:00-07:00"
+    },
+    {
+      "talk_id": "kc-a-1",
+      "room": "kc-a",
+      "title": "EDIT: KubeCon talk you seed from a recording",
+      "speakers": "EDIT: speakers",
+      "abstract": "EDIT: the talk's abstract, in your own words.",
+      "start": "2026-11-09T09:00:00-07:00",
+      "end": "2026-11-09T19:00:00-07:00"
+    },
+    {
+      "talk_id": "kc-b-1",
+      "room": "kc-b",
+      "title": "EDIT: second KubeCon talk you seed",
+      "speakers": "EDIT: speakers",
+      "abstract": "EDIT: the talk's abstract, in your own words.",
+      "start": "2026-11-09T09:00:00-07:00",
+      "end": "2026-11-09T19:00:00-07:00"
+    }
+  ]
+}
