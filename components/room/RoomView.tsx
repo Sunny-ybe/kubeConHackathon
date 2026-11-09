@@ -171,7 +171,7 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
           role="tablist"
           aria-label="Room views"
           onKeyDown={onTabKey}
-          className="mx-auto flex max-w-6xl px-4 sm:gap-6 sm:px-8"
+          className="mx-auto flex max-w-6xl px-4 sm:gap-2 sm:px-5"
         >
           {TABS.map((t, i) => {
             const active = t.id === tab;
@@ -188,14 +188,14 @@ export default function RoomView({ room, roomName, fallbackTalk }: Props) {
                 aria-controls={`panel-${t.id}`}
                 tabIndex={active ? 0 : -1}
                 onClick={() => setTab(t.id)}
-                className={`relative h-12 flex-1 text-[15px] font-medium transition-colors sm:flex-none sm:px-1 ${
+                className={`relative h-12 flex-1 text-[15px] font-medium transition-colors sm:min-w-16 sm:flex-none sm:px-3 ${
                   active ? "text-fg" : "text-muted hover:text-fg"
                 }`}
               >
                 {t.label}
                 <span
                   aria-hidden="true"
-                  className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent transition-opacity sm:inset-x-0 ${
+                  className={`absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-accent transition-opacity sm:inset-x-3 ${
                     active ? "opacity-100" : "opacity-0"
                   }`}
                 />
