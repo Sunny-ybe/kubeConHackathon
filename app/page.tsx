@@ -10,6 +10,7 @@ import {
   QrIcon,
   SearchIcon,
   StackIcon,
+  UsersIcon,
 } from "@/components/icons";
 
 // "Now" depends on the clock, so render per request.
@@ -26,6 +27,8 @@ const LINKS = [
   { href: "/me", label: "My slides", Icon: StackIcon },
   { href: "/live", label: "Live board", Icon: BroadcastIcon },
   { href: "/qr", label: "QR codes", Icon: QrIcon },
+  { href: "/card", label: "Make your card", Icon: PlusIcon },
+  { href: "/people", label: "People", Icon: UsersIcon },
 ];
 
 export default function Home() {
