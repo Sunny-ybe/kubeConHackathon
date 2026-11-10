@@ -185,6 +185,34 @@ export const DiagramIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const DownloadIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 4v10.5m0 0L8 10.5m4 4 4-4" />
+    <path d="M5 15.5v2A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5v-2" />
+  </Svg>
+);
+
+/** Filled play triangle with soft corners, for video badges. */
+export const PlayIcon = ({ size = 20, ...rest }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...rest}>
+    <path
+      d="M8 5.9v12.2a1 1 0 0 0 1.5.86l9.7-6.1a1 1 0 0 0 0-1.72L9.5 5.04A1 1 0 0 0 8 5.9z"
+      fill="currentColor"
+      stroke="currentColor"
+      strokeWidth="1"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+export const IdCardIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+    <circle cx="9" cy="11" r="2" />
+    <path d="M6 15.5a3 3 0 0 1 6 0M14.5 10h3M14.5 13.5h3" />
+  </Svg>
+);
+
 /** The Backrow mark: a slide frame seen from the back row, with the accent "record" dot. */
 export function BackrowMark({ size = 22 }: { size?: number }) {
   return (
