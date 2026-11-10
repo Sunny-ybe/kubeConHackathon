@@ -1,4 +1,5 @@
 // Browser-side API client. Returns lib/fixtures.ts data when NEXT_PUBLIC_USE_FIXTURES=1.
+import { upload } from "@vercel/blob/client";
 import type {
   CreateRoomResponse,
   FeedResponse,
@@ -9,8 +10,9 @@ import type {
   Slide,
   SnapResponse,
   TranslateResponse,
+  VideoUploadPayload,
 } from "./types";
-import { IMAGE_MAX_PX, MAX_UPLOAD_BYTES, THUMB_MAX_PX } from "./config";
+import { IMAGE_MAX_PX, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS, THUMB_MAX_PX, VIDEO_TYPES } from "./config";
 import { deviceId, getSharePref } from "./device";
 import { feedFixture, roomFixture, slidesFixture, snapFixture, translateFixture } from "./fixtures";
 
@@ -62,6 +64,161 @@ export async function snap(file: File, room: string): Promise<SnapResponse> {
     return body;
   } catch (e) {
     return { ok: false, reason: "error", message: e instanceof Error ? e.message : "Something went wrong." };
+  }
+}
+
+export const isVideoFile = (file: File) => file.type.startsWith("video/");
+
+const VIDEO_LIMITS = `Videos can be up to ${MAX_VIDEO_SECONDS} seconds and ${Math.round(MAX_VIDEO_BYTES / 1_000_000)} MB.`;
+const UNREADABLE = "Couldn't read that video. Try one recorded with your phone's camera.";
+
+function once(el: HTMLVideoElement, event: string, ms = 15000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => done(new Error(`timeout: ${event}`)), ms);
+    const ok = () => done();
+    const fail = () => done(new Error("video error"));
+    function done(err?: Error) {
+      clearTimeout(t);
+      el.removeEventListener(event, ok);
+      el.removeEventListener("error", fail);
+      if (err) reject(err);
+      else resolve();
+    }
+    el.addEventListener(event, ok);
+    el.addEventListener("error", fail);
+  });
+}
+
+function canvasJpeg(video: HTMLVideoElement, maxPx: number, quality: number): Promise<Blob> {
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  const scale = Math.min(1, maxPx / Math.max(w, h));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is not available");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not encode poster"))), "image/jpeg", quality),
+  );
+}
+
+/**
+ * Read a video's length and grab a poster frame at ~1s (1280px JPEG + 400px thumb).
+ * iOS only decodes frames for a muted, inline video once data has loaded.
+ */
+async function readVideo(file: File): Promise<{ duration: number; image: Blob; thumb: Blob }> {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = url;
+  try {
+    if (video.readyState < 1) await once(video, "loadedmetadata");
+    const duration = video.duration;
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error("no duration");
+    // Too long: report the length without decoding anything.
+    if (duration > MAX_VIDEO_SECONDS + 0.5) return { duration, image: new Blob(), thumb: new Blob() };
+    if (video.readyState < 2) {
+      const loaded = once(video, "loadeddata");
+      // iOS Safari won't buffer frames until playback starts; a muted inline play is allowed.
+      video.play().then(() => video.pause(), () => {});
+      await loaded;
+    }
+    const at = Math.min(1, duration / 2);
+    if (Math.abs(video.currentTime - at) > 0.05) {
+      const seeked = once(video, "seeked");
+      video.currentTime = at;
+      await seeked;
+    }
+    if (!video.videoWidth) throw new Error("no frame");
+    let image = await canvasJpeg(video, IMAGE_MAX_PX, 0.8);
+    if (image.size > MAX_UPLOAD_BYTES) image = await canvasJpeg(video, IMAGE_MAX_PX, 0.6);
+    const thumb = await canvasJpeg(video, THUMB_MAX_PX, 0.75);
+    return { duration, image, thumb };
+  } finally {
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(url);
+  }
+}
+
+function blobName(file: File): string {
+  const ext = file.type === "video/quicktime" ? "mov" : file.type === "video/webm" ? "webm" : "mp4";
+  const base = file.name.replace(/\.[^.]*$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `${base.slice(0, 40) || "video"}.${ext}`;
+}
+
+export type VideoProgress = { stage: "checking" } | { stage: "uploading"; percent: number } | { stage: "reading" };
+
+/**
+ * Video snap (hosted rooms, SPEC §15): check limits, grab the poster frame, upload the file
+ * straight to Vercel Blob, then post the poster to /api/snap with video_url and duration_s.
+ */
+export async function snapVideo(
+  file: File,
+  room: string,
+  onProgress: (p: VideoProgress) => void,
+): Promise<SnapResponse> {
+  onProgress({ stage: "checking" });
+  if (!(VIDEO_TYPES as readonly string[]).includes(file.type)) {
+    return { ok: false, reason: "error", message: "That video format isn't supported. Try an MP4 or MOV." };
+  }
+  if (file.size > MAX_VIDEO_BYTES) {
+    const mb = Math.round(file.size / 1_000_000);
+    return { ok: false, reason: "too_large", message: `That video is ${mb} MB. ${VIDEO_LIMITS}` };
+  }
+  let frame: { duration: number; image: Blob; thumb: Blob };
+  try {
+    frame = await readVideo(file);
+  } catch {
+    return { ok: false, reason: "error", message: UNREADABLE };
+  }
+  if (frame.duration > MAX_VIDEO_SECONDS + 0.5) {
+    const t = Math.round(frame.duration);
+    const len = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+    return { ok: false, reason: "too_large", message: `That video is ${len} long. ${VIDEO_LIMITS}` };
+  }
+  if (USE_FIXTURES) {
+    for (let p = 0; p <= 100; p += 10) {
+      onProgress({ stage: "uploading", percent: p });
+      await wait(250);
+    }
+    onProgress({ stage: "reading" });
+    await wait(1500);
+    return snapFixture;
+  }
+  try {
+    const payload: VideoUploadPayload = { room, device_id: deviceId() };
+    onProgress({ stage: "uploading", percent: 0 });
+    const blob = await upload(`videos/${room}/${blobName(file)}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/upload",
+      clientPayload: JSON.stringify(payload),
+      contentType: file.type,
+      multipart: true,
+      onUploadProgress: (e) => onProgress({ stage: "uploading", percent: Math.round(e.percentage) }),
+    });
+    onProgress({ stage: "reading" });
+    const form = new FormData();
+    form.append("image", frame.image, "poster.jpg");
+    form.append("thumb", frame.thumb, "thumb.jpg");
+    form.append("room", room);
+    form.append("device_id", deviceId());
+    form.append("shared", "true");
+    form.append("video_url", blob.url);
+    form.append("duration_s", String(Math.round(frame.duration * 10) / 10));
+    const res = await fetch("/api/snap", { method: "POST", body: form });
+    return (await res.json()) as SnapResponse;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    return {
+      ok: false,
+      reason: "error",
+      message: /not set up|only be shared/i.test(msg) ? msg : "Couldn't upload that video. Check your connection and try again.",
+    };
   }
 }
 

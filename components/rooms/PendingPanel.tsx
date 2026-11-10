@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { CheckIcon, CloseIcon, QrIcon } from "@/components/icons";
 import SlideImage from "@/components/slide/SlideImage";
+import VideoBadge from "@/components/slide/VideoBadge";
 import { formatTime } from "@/lib/config";
 import type { Slide } from "@/lib/types";
 
@@ -62,6 +63,7 @@ function PendingCard({ slide, index, onAct, onOpen }: CardProps) {
       >
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-line bg-surface transition-colors group-hover:border-line-strong">
           <SlideImage slide={slide} size="thumb" />
+          {slide.media === "video" && <VideoBadge duration={slide.duration_s} />}
         </div>
         <h3 className="mt-3 line-clamp-2 text-[17px] leading-snug font-semibold tracking-tight">{title}</h3>
         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted">

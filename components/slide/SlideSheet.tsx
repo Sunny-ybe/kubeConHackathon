@@ -93,7 +93,19 @@ export default function SlideSheet({ slide, roomName, onClose }: Props) {
 
         <div className="overflow-y-auto overscroll-contain px-5 pb-safe sm:px-7">
           <div className="relative aspect-video overflow-hidden rounded-xl border border-line bg-canvas">
-            <SlideImage slide={slide} size="full" large />
+            {slide.media === "video" && slide.video_url ? (
+              <video
+                src={slide.video_url}
+                poster={slide.image_url}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label={title}
+                className="absolute inset-0 size-full bg-black object-contain"
+              />
+            ) : (
+              <SlideImage slide={slide} size="full" large />
+            )}
           </div>
 
           <p className="mt-5 text-sm text-muted">

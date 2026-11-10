@@ -43,7 +43,20 @@ export default function SlideModal({ slide, label, onClose }: { slide: Slide | n
               </svg>
             </button>
           </div>
-          <SlideThumb key={slide.slide_id} slide={slide} size="lg" />
+          {slide.media === "video" && slide.video_url ? (
+            <video
+              key={slide.slide_id}
+              src={slide.video_url}
+              poster={slide.image_url}
+              controls
+              playsInline
+              preload="metadata"
+              aria-label={slide.title || "Video"}
+              className="aspect-video w-full rounded-lg border border-line bg-black object-contain"
+            />
+          ) : (
+            <SlideThumb key={slide.slide_id} slide={slide} size="lg" />
+          )}
           {slide.text && <p className="mt-5 whitespace-pre-line text-xl leading-relaxed">{slide.text}</p>}
           {slide.alt_text && (
             <div className="mt-5 rounded-xl border border-line bg-canvas p-4">
