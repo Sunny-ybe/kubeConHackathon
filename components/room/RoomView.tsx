@@ -11,15 +11,15 @@ import PendingPanel from "@/components/rooms/PendingPanel";
 import { useSharePref } from "@/components/hooks/useSharePref";
 import SlideCard, { SlideCardSkeleton } from "@/components/slide/SlideCard";
 import SlideSheet from "@/components/slide/SlideSheet";
-import { MAX_BATCH_UPLOAD, formatTime } from "@/lib/config";
-import { getMedia, getRoom, snap } from "@/lib/client";
+import { MAX_BATCH_UPLOAD, MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS, formatTime } from "@/lib/config";
+import { getMedia, getRoom, isVideoFile, snap, snapVideo, type VideoProgress } from "@/lib/client";
 import type { SharePref } from "@/lib/device";
 import type { RoomResponse, Slide, Talk } from "@/lib/types";
 import PeopleMenu from "./PeopleMenu";
 import ShareModal from "./ShareModal";
 import ShareToggle from "./ShareToggle";
 import SnapBar from "./SnapBar";
-import { SnapErrorCard, SnapLoadingCard, UploadProgressCard } from "./SnapStatusCard";
+import { SnapErrorCard, SnapLoadingCard, UploadProgressCard, VideoUploadCard } from "./SnapStatusCard";
 
 type TabId = "feed" | "pending" | "easy" | "ask";
 const TABS: { id: TabId; label: string }[] = [
@@ -36,8 +36,16 @@ type SnapState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "batch"; current: number; total: number }
+  | { status: "video"; progress: VideoProgress; current?: number; total?: number }
   | { status: "error"; message: string };
 type Notice = { title: string; body: string };
+
+/** "3 photos", "1 video", "2 photos and 1 video". */
+function describe(photos: number, videos: number): string {
+  const p = `${photos} ${photos === 1 ? "photo" : "photos"}`;
+  const v = `${videos} ${videos === 1 ? "video" : "videos"}`;
+  return videos === 0 ? p : photos === 0 ? v : `${p} and ${v}`;
+}
 
 type Props = { room: string; roomName: string; hosted: boolean; fallbackTalk: Talk | null };
 
@@ -103,9 +111,13 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
     setTab("feed");
     setResultNote("");
     setNotice(null);
-    setSnapState({ status: "loading" });
+    // Videos only in hosted rooms (SPEC §15); scheduled rooms only ever offer images.
+    const video = hosted && isVideoFile(file);
+    setSnapState(video ? { status: "video", progress: { stage: "checking" } } : { status: "loading" });
     window.scrollTo({ top: 0, behavior: "smooth" });
-    const res = await snap(file, room);
+    const res = video
+      ? await snapVideo(file, room, (progress) => setSnapState({ status: "video", progress }))
+      : await snap(file, room);
     if (res.ok) {
       const slide: Slide = {
         ...res.slide,
@@ -122,7 +134,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
       } else {
         setResultNote(
           hosted
-            ? `Added “${slide.title || "your photo"}” to the room.`
+            ? `Added “${slide.title || (video ? "your video" : "your photo")}” to the room.`
             : `Saved “${slide.title || "your slide"}”. Snapped by ${res.cluster_size} ${res.cluster_size === 1 ? "person" : "people"}.`,
         );
         setOpen(slide);
@@ -131,8 +143,9 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
     } else {
       setSnapState({
         status: "error",
-        message:
-          res.reason === "not_a_slide"
+        message: video
+          ? res.message
+          : res.reason === "not_a_slide"
             ? "That doesn't look like a slide. Try again?"
             : res.reason === "too_large"
               ? "That photo is too large. Try again?"
@@ -156,14 +169,22 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
     let added = 0;
     let waiting = 0;
     let failed = 0;
+    let videosOk = 0;
+    let overLimit = 0;
     for (let i = 0; i < files.length; i++) {
-      setSnapState({ status: "batch", current: i + 1, total: files.length });
+      const video = isVideoFile(files[i]);
+      const at = { current: i + 1, total: files.length };
+      setSnapState(video ? { status: "video", progress: { stage: "checking" }, ...at } : { status: "batch", ...at });
       setResultNote(`Uploading ${i + 1} of ${files.length}…`);
-      const res = await snap(files[i], room);
+      const res = video
+        ? await snapVideo(files[i], room, (progress) => setSnapState({ status: "video", progress, ...at }))
+        : await snap(files[i], room);
       if (!res.ok) {
-        failed++;
+        if (video && res.reason === "too_large") overLimit++;
+        else failed++;
         continue;
       }
+      if (video) videosOk++;
       const slide: Slide = {
         ...res.slide,
         snaps: res.cluster_size,
@@ -177,9 +198,11 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
     setSnapState({ status: "idle" });
     refresh();
     const ok = added + waiting;
-    const photos = (n: number) => `${n} ${n === 1 ? "photo" : "photos"}`;
     const extra = [
-      failed > 0 ? `${photos(failed)} couldn't be uploaded. Try ${failed === 1 ? "it" : "them"} again.` : "",
+      overLimit > 0
+        ? `${overLimit === 1 ? "1 video was" : `${overLimit} videos were`} too long or too large. Videos can be up to ${MAX_VIDEO_SECONDS} seconds and ${Math.round(MAX_VIDEO_BYTES / 1_000_000)} MB.`
+        : "",
+      failed > 0 ? `${failed === 1 ? "1 file" : `${failed} files`} couldn't be uploaded. Try ${failed === 1 ? "it" : "them"} again.` : "",
       picked.length > files.length ? `Only the first ${MAX_BATCH_UPLOAD} were sent.` : "",
     ]
       .filter(Boolean)
@@ -188,8 +211,8 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
       ok === 0
         ? { title: "Nothing was uploaded.", body: extra || "Check your connection and try again." }
         : waiting > 0
-          ? { title: `Sent ${photos(ok)} to the host.`, body: `They appear for everyone once approved. ${extra}`.trim() }
-          : { title: `Added ${photos(ok)} to the room.`, body: extra };
+          ? { title: `Sent ${describe(ok - videosOk, videosOk)} to the host.`, body: `They appear for everyone once approved. ${extra}`.trim() }
+          : { title: `Added ${describe(ok - videosOk, videosOk)} to the room.`, body: extra };
     setNotice(next);
     setResultNote(`${next.title} ${next.body}`.trim());
   }
@@ -267,8 +290,8 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
             </h1>
             <p className="mt-2 max-w-[46ch] text-[15px] text-muted">
               {host
-                ? "Your photos go up at once. Approve guests' photos under Pending."
-                : "Add any photo. The host approves what everyone sees."}
+                ? "Your photos and videos go up at once. Approve guests' under Pending."
+                : "Add any photo or short video. The host approves what everyone sees."}
             </p>
           </div>
         ) : (
@@ -425,6 +448,9 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
                 {snapState.status === "batch" && (
                   <UploadProgressCard current={snapState.current} total={snapState.total} />
                 )}
+                {snapState.status === "video" && (
+                  <VideoUploadCard progress={snapState.progress} current={snapState.current} total={snapState.total} />
+                )}
                 {snapState.status === "loading" && (
                   <SnapLoadingCard lines={!hosted ? undefined : host ? HOSTED_LINES : GUEST_LINES} />
                 )}
@@ -474,7 +500,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={hosted ? "image/*,video/*" : "image/*"}
         capture="environment"
         onChange={onFile}
         className="hidden"
@@ -485,7 +511,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
         <input
           ref={rollRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           onChange={onFiles}
           className="hidden"
@@ -495,7 +521,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
       )}
       {(tab === "feed" || tab === "easy") && (
         <SnapBar
-          busy={snapState.status === "loading" || snapState.status === "batch"}
+          busy={snapState.status === "loading" || snapState.status === "batch" || snapState.status === "video"}
           onSnap={startSnap}
           onUpload={hosted ? () => rollRef.current?.click() : undefined}
           label={hosted ? "Snap" : undefined}
