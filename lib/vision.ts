@@ -47,11 +47,14 @@ export const VISION_SCHEMA = {
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
-export async function readSlide(jpeg: Buffer, opts: { photo?: boolean } = {}): Promise<SlideReading> {
+/** Video poster frames (SPEC §15) use the photo prompt with this prefix. */
+export const VIDEO_PREFIX = "This is a frame from a short video.\n";
+
+export async function readSlide(jpeg: Buffer, opts: { photo?: boolean; video?: boolean } = {}): Promise<SlideReading> {
   // PNG magic bytes; everything else is sent as JPEG (the client always resizes to JPEG).
   const isPng = jpeg.subarray(0, 4).toString("hex") === "89504e47";
   const raw = await claudeJSON<Partial<SlideReading>>({
-    prompt: opts.photo ? PHOTO_VISION_PROMPT : VISION_PROMPT,
+    prompt: opts.video ? VIDEO_PREFIX + PHOTO_VISION_PROMPT : opts.photo ? PHOTO_VISION_PROMPT : VISION_PROMPT,
     image: { base64: jpeg.toString("base64"), mediaType: isPng ? "image/png" : "image/jpeg" },
     schema: VISION_SCHEMA,
     timeoutMs: 20_000,
