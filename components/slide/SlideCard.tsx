@@ -3,6 +3,7 @@ import { formatTime } from "@/lib/config";
 import type { Slide } from "@/lib/types";
 import { ClockIcon } from "@/components/icons";
 import SlideImage from "./SlideImage";
+import VideoBadge from "./VideoBadge";
 
 type Props = { slide: Slide; index: number; onOpen: (slide: Slide) => void };
 
@@ -10,16 +11,18 @@ export default function SlideCard({ slide, index, onOpen }: Props) {
   const snaps = slide.snaps ?? 1;
   const title = slide.title || (slide.kind === "photo" ? "Untitled photo" : "Untitled slide");
   const waiting = slide.status === "pending";
+  const video = slide.media === "video";
   return (
     <li className="animate-rise" style={{ animationDelay: `${Math.min(index, 6) * 45}ms` }}>
       <button
         type="button"
         onClick={() => onOpen(slide)}
-        aria-label={`${title}${snaps > 1 ? `, snapped ${snaps} times` : ""}${waiting ? ", waiting for host" : ""}. Open ${slide.kind === "photo" ? "photo" : "slide"}`}
+        aria-label={`${title}${snaps > 1 ? `, snapped ${snaps} times` : ""}${waiting ? ", waiting for host" : ""}. Open ${video ? "video" : slide.kind === "photo" ? "photo" : "slide"}`}
         className="group block w-full rounded-2xl text-left transition-transform active:scale-[0.985]"
       >
         <div className="relative aspect-video overflow-hidden rounded-xl border border-line bg-surface transition-colors group-hover:border-line-strong">
           <SlideImage slide={slide} size="thumb" />
+          {video && <VideoBadge duration={slide.duration_s} />}
           {waiting && (
             <span className="absolute top-2.5 left-2.5 flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-canvas/85 pr-2.5 pl-2 text-[13px] font-medium text-fg">
               <ClockIcon size={15} className="text-muted" />
