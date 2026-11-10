@@ -2,6 +2,7 @@
 import type {
   CreateRoomResponse,
   FeedResponse,
+  MediaResponse,
   ModerateResponse,
   PendingResponse,
   RoomResponse,
@@ -112,6 +113,20 @@ export async function getFeed(room: string): Promise<FeedResponse> {
   if (USE_FIXTURES) return { ...feedFixture, room };
   const qs = new URLSearchParams({ room, device_id: deviceId() });
   return getJSON(`/api/feed?${qs}`);
+}
+
+/**
+ * Everything downloadable in a room (SPEC §15): "mine" = this device's uploads, "all" = what
+ * everyone can see plus mine. Newest first, up to MAX_DOWNLOAD_ITEMS.
+ */
+export async function getMedia(room: string, scope: "mine" | "all"): Promise<MediaResponse> {
+  if (USE_FIXTURES) {
+    await wait(500);
+    const items = slidesFixture.map((s, i) => ({ ...s, mine: i % 2 === 0 }));
+    return { room, scope, items: scope === "mine" ? items.filter((s) => s.mine) : items };
+  }
+  const qs = new URLSearchParams({ device_id: deviceId(), scope });
+  return getJSON(`/api/rooms/${encodeURIComponent(room)}/media?${qs}`);
 }
 
 export async function translate(text: string, lang: string): Promise<TranslateResponse> {

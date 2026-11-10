@@ -5,6 +5,8 @@ import type { MeResponse, ReportResponse, Slide } from "@/lib/types";
 import { formatTime } from "@/lib/config";
 import { deviceId } from "@/lib/device";
 import SlideModal from "@/components/ask/SlideModal";
+import DownloadSheet from "@/components/download/DownloadSheet";
+import { DownloadIcon } from "@/components/icons";
 import { PageHeader, Shimmer, SlideThumb, roomName } from "@/components/ask/ui";
 import TripReport from "@/components/report/TripReport";
 
@@ -31,6 +33,7 @@ export default function MeView() {
   const [report, setReport] = useState<Report>({ kind: "idle" });
   const [line, setLine] = useState(0);
   const [open, setOpen] = useState<Slide | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/me?device_id=${encodeURIComponent(deviceId())}`)
@@ -120,6 +123,16 @@ export default function MeView() {
                 {report.kind === "loading" ? "Writing…" : "Write my trip report"}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setDownloading(true)}
+              className={`flex h-14 w-full items-center justify-center gap-2.5 rounded-xl border border-line-strong text-lg font-semibold transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                report.kind === "done" ? "mb-6" : "mt-2.5"
+              }`}
+            >
+              <DownloadIcon size={22} className="text-muted" />
+              Download all my photos
+            </button>
             <div aria-live="polite" aria-busy={report.kind === "loading"}>
               {report.kind === "loading" && (
                 <div className="mt-4 rounded-2xl border border-line bg-surface p-5 sm:p-7">
@@ -189,6 +202,14 @@ export default function MeView() {
       )}
 
       <SlideModal slide={open} onClose={() => setOpen(null)} />
+      {downloading && (
+        <DownloadSheet
+          title="Download all my photos"
+          load={async () => [{ id: "me", label: "My photos", items: slides }]}
+          zipName={() => "backrow-my-photos.zip"}
+          onClose={() => setDownloading(false)}
+        />
+      )}
     </main>
   );
 }

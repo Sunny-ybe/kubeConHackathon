@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import AskPanel from "@/components/ask/AskPanel";
 import EasyReader from "@/components/easy/EasyReader";
-import { BackrowMark, CameraIcon, CloseIcon, ClockIcon, ExpandIcon, QrIcon, SearchIcon, StackIcon } from "@/components/icons";
+import DownloadSheet from "@/components/download/DownloadSheet";
+import { BackrowMark, CameraIcon, CloseIcon, ClockIcon, DownloadIcon, ExpandIcon, QrIcon, SearchIcon, StackIcon } from "@/components/icons";
 import { useFeed } from "@/components/hooks/useFeed";
 import { usePending } from "@/components/hooks/usePending";
 import PendingPanel from "@/components/rooms/PendingPanel";
@@ -11,9 +12,10 @@ import { useSharePref } from "@/components/hooks/useSharePref";
 import SlideCard, { SlideCardSkeleton } from "@/components/slide/SlideCard";
 import SlideSheet from "@/components/slide/SlideSheet";
 import { MAX_BATCH_UPLOAD, formatTime } from "@/lib/config";
-import { getRoom, snap } from "@/lib/client";
+import { getMedia, getRoom, snap } from "@/lib/client";
 import type { SharePref } from "@/lib/device";
 import type { RoomResponse, Slide, Talk } from "@/lib/types";
+import PeopleMenu from "./PeopleMenu";
 import ShareModal from "./ShareModal";
 import ShareToggle from "./ShareToggle";
 import SnapBar from "./SnapBar";
@@ -49,6 +51,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
   const [asking, setAsking] = useState(false);
   const [resultNote, setResultNote] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [sharePref, setSharePref] = useSharePref();
   const fileRef = useRef<HTMLInputElement>(null);
   const rollRef = useRef<HTMLInputElement>(null);
@@ -211,7 +214,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
             aria-label="Backrow home"
           >
             <BackrowMark />
-            <span className="hidden text-[17px] min-[380px]:inline">Backrow</span>
+            <span className="hidden text-[17px] min-[430px]:inline">Backrow</span>
           </Link>
           <div className="-mr-2 flex items-center">
             {hosted ? (
@@ -235,6 +238,7 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
             >
               <SearchIcon size={22} />
             </Link>
+            <PeopleMenu room={room} />
             <Link
               href="/me"
               aria-label="My slides"
@@ -379,6 +383,21 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
                 </button>
               </div>
             )}
+            {slides && slides.length > 0 && (
+              <div className="-mt-2 mb-4 flex items-center justify-between gap-3">
+                <p className="text-[15px] text-muted">Newest first</p>
+                <button
+                  type="button"
+                  onClick={() => setDownloading(true)}
+                  className="-mr-1 flex min-h-12 items-center px-1 text-[15px] font-medium"
+                >
+                  <span className="flex h-10 items-center gap-2 rounded-full border border-line-strong px-4 transition-colors hover:bg-surface">
+                    <DownloadIcon size={18} className="text-muted" />
+                    Download
+                  </span>
+                </button>
+              </div>
+            )}
             {slides && slides.length === 0 && snapState.status === "idle" ? (
               <div className="grid aspect-video max-w-xl place-items-center rounded-xl border border-dashed border-line-strong px-6 text-center">
                 <div>
@@ -483,6 +502,20 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
         />
       )}
       {asking && <ShareModal onChoose={chooseShare} onCancel={() => setAsking(false)} />}
+      {downloading && (
+        <DownloadSheet
+          title={hosted ? "Download photos" : "Download slides"}
+          load={async () => {
+            const [mine, all] = await Promise.all([getMedia(room, "mine"), getMedia(room, "all")]);
+            return [
+              { id: "mine", label: hosted ? "My photos" : "My slides", items: mine.items },
+              { id: "all", label: hosted ? "All photos" : "All slides", items: all.items },
+            ];
+          }}
+          zipName={(o) => `${room}-${o.id === "mine" ? "mine" : "all"}.zip`}
+          onClose={() => setDownloading(false)}
+        />
+      )}
       {open && <SlideSheet slide={open} roomName={name} onClose={() => setOpen(null)} />}
     </div>
   );
