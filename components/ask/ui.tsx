@@ -5,6 +5,7 @@ import { useState } from "react";
 import schedule from "@/data/schedule.json";
 import type { Slide } from "@/lib/types";
 import { formatTime } from "@/lib/config";
+import VideoBadge from "@/components/slide/VideoBadge";
 
 const ROOM_NAMES: Record<string, string> = Object.fromEntries(schedule.rooms.map((r) => [r.room, r.name]));
 
@@ -14,7 +15,8 @@ export function roomName(room: string): string {
 
 /** "Talk · Room · 2:41 PM", skipping empty parts. */
 export function slideMeta(s: Slide): string {
-  return [s.talk_title, roomName(s.room), formatTime(s.taken_at)].filter(Boolean).join(" · ");
+  // Hosted rooms aren't in the schedule; their talk title already is the room name, so skip the slug.
+  return [s.talk_title, ROOM_NAMES[s.room], formatTime(s.taken_at)].filter(Boolean).join(" · ");
 }
 
 /** Shimmering placeholder block. Size it with className. Holds still under reduced motion. */
@@ -80,6 +82,7 @@ export function SlideThumb({
           }`}
         />
       )}
+      {slide.media === "video" && <VideoBadge duration={slide.duration_s} small={size !== "lg"} />}
     </div>
   );
 }

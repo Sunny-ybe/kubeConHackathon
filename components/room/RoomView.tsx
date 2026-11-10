@@ -232,8 +232,8 @@ export default function RoomView({ room, roomName, hosted: hostedAtLoad, fallbac
               <ShareToggle />
             )}
             <Link
-              href="/search"
-              aria-label="Search slides"
+              href={`/search?room=${encodeURIComponent(room)}`}
+              aria-label={hosted ? "Search this room's photos" : "Search this room's slides"}
               className="grid size-12 place-items-center rounded-full text-muted transition-colors hover:text-fg"
             >
               <SearchIcon size={22} />
