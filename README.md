@@ -1,14 +1,25 @@
-# Backrow
+<h1 align="center">Backrow</h1>
 
-**Snap a slide. Keep the talk.**
+<p align="center"><strong>Snap a slide. Keep the talk.</strong><br/>
+Every slide photo taken at a conference is read by AI, matched to the talk it came from, merged with everyone else's photos of the same slide, and made searchable.</p>
 
-Backrow turns the slide photos people take at conferences into something useful: every snap is read, tagged to the talk it came from, grouped with everyone else's snaps of the same slide, and made searchable. Speakers see which slides the room photographed, and attendees leave with notes and a trip report grounded in real slides.
+<p align="center">
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
+  <img alt="Elasticsearch" src="https://img.shields.io/badge/Elasticsearch-hybrid%20search-005571?logo=elasticsearch&logoColor=white">
+  <img alt="Claude" src="https://img.shields.io/badge/Claude-vision-D97757?logo=anthropic&logoColor=white">
+  <img alt="Vercel" src="https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white">
+  <img alt="CI" src="https://github.com/Sunny-ybe/kubeConHackathon/actions/workflows/ci.yml/badge.svg">
+</p>
 
-Built by **Sashikant Kumar** for the Cloud Native Hackathon (KubeCon, Denver).
+## At a glance
 
-| Room feed on a phone | Projector view (`/live`) |
-|---|---|
-| _screenshot placeholder_ | _screenshot placeholder_ |
+| | |
+| --- | --- |
+| **What** | A conference companion: attendees snap slides on their phones, speakers see which slides the room photographed, and everyone leaves with searchable notes and a trip report built from real slides |
+| **Built at** | Cloud Native Hackathon, KubeCon Denver. Solo project |
+| **How I built it** | Wrote a frozen spec and shared types first, then ran parallel coding agents, each in its own git worktree and branch. Every change came in as a PR gated by CI and automated review, and I reviewed and merged each one myself (26 PRs, ~140 commits) |
+| **Highlights** | Hybrid keyword + semantic search fused with RRF, automatic talk attribution from room and time, duplicate-slide clustering ("snapped by 9 people"), answers that cite slides as sources, and accessibility built in (easy-read mode, read-aloud, translation into 6 languages, AI-written diagram alt text) |
 
 ## What you can do
 
